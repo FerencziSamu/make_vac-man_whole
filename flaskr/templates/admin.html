@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block admin %}
+  <a href="/requests">Leave Requests</a>
+{% endblock admin %}
+{% block content %}
+    <h1>Pending Accounts</h1>
+    <table class="table table-condensed admin">
+    <thead>
+      <tr>
+        <th scope="col">Email</th>
+        <th scope="col"></th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+      {% if user.user_group == 'unapproved' %}
+        <tr>
+          <td>{{ user.email }}</td>
+          <td><form action="/handle_acc" method="POST"><button class="btn btn-success" type="submit" name="approve" value="{{ user.email }}">Approve</button></form></td>
+          <td><form action="/handle_acc" method="POST"><button class="btn btn-danger" type="submit" name="delete" value="{{ user.email }}">Decline</button></form></td>
+        </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+    </table>
+    <h1>Pending Leave Requests</h1>
+    <table class="table table-condensed admin">
+    <thead>
+      <tr>
+        <th scope="col">Email</th>
+        <th scope="col">Start Date</th>
+        <th scope="col">End Date</th>
+        <th scope="col"></th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for request in leave_requests %}
+      {% if request.state == 'pending' %}
+        <tr>
+          <td>{{ request.user.email }}</td>
+          <td>{{ request.start_date|dateformat }}</td>
+          <td>{{ request.end_date|dateformat }}</td>
+          <td><form action="/handle_request" method="POST"><button class="btn btn-success" type="submit" name="accept" value="{{ request.id }}">Approve</button></form></td>
+          <td><form action="/handle_request" method="POST"><button class="btn btn-danger" type="submit" name="decline" value="{{ request.id }}">Decline</button></form></td>
+        </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+    </table>
+    {% if prev_url %}
+    <a class="btn btn-default" href="{{ prev_url }}">Previous</a>
+    {% endif %}
+    {% if next_url %}
+    <a class="btn btn-default" href="{{ next_url }}">Next</a>
+    {% endif %}
+    <h1>Accounts</h1>
+    <table class="table table-condensed admin">
+    <thead>
+      <tr>
+        <th scope="col">Email</th>
+        <th scope="col">User Group</th>
+        <th scope="col">Leave Category</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+        {% if user.user_group != 'unapproved' %}
+          <tr>
+            <td>{{ user.email }}</td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">{{ user.user_group }}
+                <span class="caret"></span></button>
+                  <ul class="dropdown-menu">
+                  {% for group in user_groups %}
+                    {% if user.user_group != group %}
+                      <li><form action="/handle_acc" method="POST" >
+                        <input type="hidden" name="user" value="{{ user.email }}">
+                        <input class="btn btn-default" type="submit" name="group" value="{{ group }}">
+                      </form></li>
+                    {% endif %}
+                  {% endfor %}
+                  </ul>
+              </div>
+            </td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">{{ user.leave_category.category }}
+                <span class="caret"></span></button>
+                  <ul class="dropdown-menu">
+                  {% for category in leave_categories %}
+                    {% if user.leave_category != category %}
+                      <li><form action="/handle_acc" method="POST" >
+                        <input type="hidden" name="user" value="{{ user.email }}">
+                        <input type="hidden" name="category" value="{{ category.id }}">
+                        <input class="btn btn-default" type="submit" value="{{ category.category }}">
+                      </form></li>
+                    {% endif %}
+                  {% endfor %}
+                  </ul>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+    </table>
+    <h1>Leave Categories</h1>
+    <table class="table table-condensed admin">
+    <thead>
+      <tr>
+        <th scope="col">Leave Category</th>
+        <th scope="col">Maximum Days</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for category in leave_categories %}
+      <tr>
+        <td>{{ category.category }}</td>
+        <td>{{ category.max_days }}</td>
+        <td><form action="/handle_cat" method="POST" ><button class="btn btn-danger" type="submit" name="delete" value="{{ category.id }}">Delete</button> </form></td>
+      </tr>
+    {% endfor %}
+      <form action = "/handle_cat" method = "POST">
+        <tr>
+          <td><input class="form-control" placeholder="New category" type="text" name="add"></td>
+          <td><input class="form-control" placeholder="Days" type="number" min="1" step="1" name="max_days"></td>
+          <td><input class="btn btn-default" type="submit" value="Add"></td>
+        </tr>
+      </form>
+    </tbody>
+    </table>
+{% endblock content %}
