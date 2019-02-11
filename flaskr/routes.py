@@ -34,7 +34,7 @@ def admin():
     if current_user.user_group == 'administrator':
         users = User.query.all()
         leave_categories = LeaveCategory.query.all()
-        page = request.args.get('page', 1 , type=int)
+        page = request.args.get('page', 1, type=int)
         leave_requests = LeaveRequest.query.filter_by(state='pending').paginate(page, app.config.get('REQUESTS_PER_PAGE_ADMIN'), False)
         next_url = url_for('admin', page=leave_requests.next_num) \
         if leave_requests.has_next else None
@@ -47,7 +47,7 @@ def admin():
 def requests():
     current_user = get_current_user()
     if current_user.user_group == 'administrator':
-        page = request.args.get('page', 1 , type=int)
+        page = request.args.get('page', 1, type=int)
         leave_requests = LeaveRequest.query.order_by(LeaveRequest.start_date.asc()).paginate(page, app.config.get('REQUESTS_PER_PAGE'), False)
         next_url = url_for('requests', page=leave_requests.next_num) \
         if leave_requests.has_next else None
@@ -74,15 +74,15 @@ def save_request():
     end_date_split = request.form.get('end-date').split("/")
     start_date = datetime.datetime.strptime(start_date_split[2] + '-' + start_date_split[0] + '-' + start_date_split[1], '%Y-%m-%d')
     end_date = datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
-    days = end_date - start_date
-    if days.days + 1 <= get_days_left(current_user):
+    days = (end_date - start_date).days
+    if days + 1 <= get_days_left(current_user):
         leave_request = LeaveRequest(start_date = start_date,
                                     end_date = end_date,
                                     state = 'pending',
                                     user_id = current_user.id)
         if current_user.user_group == 'administrator':
             leave_request.state = 'accepted'
-        current_user.days += days.days + 1
+        current_user.days += days + 1
         db.session.add(leave_request)
         db.session.commit()
         change = current_user.email + " created a leave request."
@@ -176,7 +176,7 @@ def handle_cat():
         change = category.category + " leave category has been deleted."
         send_email(change)
     else:
-        category = LeaveCategory(category = add, max_days = max_days)
+        category = LeaveCategory(category=add, max_days=max_days)
         db.session.add(category)
         db.session.commit()
         change = category.category + " leave category has been added."
@@ -200,13 +200,13 @@ def authorized():
             request.args['error_reason'],
             request.args['error_description']
             )
-    session['google_token'] = (resp['access_token'], '')
+    session['google_token'] = (resp['access_token'], '') # Why do we have a second parameter, ''?
     raw_data = json.dumps(google.get('userinfo').data)
     data = json.loads(raw_data)
     email = data['email']
     existing = User.query.filter_by(email=email).first()
     if existing is None:
-        user = User(email = email)
+        user = User(email=email)
         db.session.add(user)
         db.session.commit()
         change = user.email + " logged in for the first time."
@@ -248,8 +248,6 @@ def send_email(change, email=None):
                 sender='noreply@demo.com',
                 recipients=emails)
     msg.body = f'''There has been a change:
-{change}
-
-If you would like to turn off the notifications then turn it off in your account settings.
-'''
+        {change}
+    If you would like to turn off the notifications then turn it off in your account settings.'''
     send_async_email(app, msg)
