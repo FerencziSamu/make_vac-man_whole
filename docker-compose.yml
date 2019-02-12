@@ -1,0 +1,21 @@
+version: '2.1'
+services:
+  db:
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+      MYSQL_DATABASE: site
+      MYSQL_USER: root
+    ports:
+      - "3306:3306"
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    links:
+      - db
+    depends_on:
+      - db
+    volumes:
+      - .:/app
