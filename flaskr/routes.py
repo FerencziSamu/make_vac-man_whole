@@ -1,10 +1,10 @@
-from flask import redirect, url_for, session, request, jsonify, render_template, flash
+from flask import redirect, url_for, session, request, render_template, flash
 from flaskr import app, db, mail
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
 from flask_oauthlib.client import OAuth
 from flask_mail import Message
-import re, datetime, calendar
+import datetime
 import json
 
 REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs console
@@ -23,10 +23,10 @@ consumer_secret=app.config.get('GOOGLE_SECRET'))
 
 @app.route('/')
 def index():
-    if 'google_token' in session:
+    if 'user' in session:
         current_user = get_current_user()
         return render_template('index.html', current_user=current_user)
-    return redirect(url_for('login'))
+    return render_template('index.html', current_user=None)
 
 @app.route('/admin')
 def admin():
@@ -190,6 +190,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('google_token', None)
+    session.pop('user', None)
     return redirect(url_for('index'))
 
 @app.route('/login/authorized')
@@ -200,17 +201,19 @@ def authorized():
             request.args['error_reason'],
             request.args['error_description']
             )
-    session['google_token'] = (resp['access_token'], '') # Why do we have a second parameter, ''?
+    session['google_token'] = (resp['access_token'], '')
     raw_data = json.dumps(google.get('userinfo').data)
     data = json.loads(raw_data)
     email = data['email']
     existing = User.query.filter_by(email=email).first()
+    session['user'] = existing.email
     if existing is None:
         user = User(email=email)
         db.session.add(user)
         db.session.commit()
         change = user.email + " logged in for the first time."
         send_email(change)
+        session['user'] = user.email
     return redirect(url_for('index'))
 
 @google.tokengetter

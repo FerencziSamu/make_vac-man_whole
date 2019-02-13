@@ -20,18 +20,21 @@
     <title>Vac-Man</title>
   </head>
   <body>
-    <header>
-      <div class="navbar-fixed">
-        <nav>
-          <div class="wrapper">
-            <span class="logo">Vacation Management</span>
-            <a href="/">Home</a>
-            {% block admin %}{% endblock admin %}
-            <a href="/account">Account</a>
-          </div>
-        </nav>
-      </div>
-    </header>
+    {% if session.get('user') != None %}
+      <header>
+        <div class="navbar-fixed">
+          <nav>
+            <div class="wrapper">
+              <span class="logo">Vacation Management</span>
+              <a href="/">Home</a>
+              {% block admin %}{% endblock admin %}
+              <a href="/account">Account</a>
+              <a href="/logout">Logout</a>
+            </div>
+          </nav>
+        </div>
+      </header>
+    {% endif %}
     <div class="main-container">
       <div class="d1">
       </div>
