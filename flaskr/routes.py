@@ -206,8 +206,18 @@ def authorized():
     data = json.loads(raw_data)
     email = data['email']
     existing = User.query.filter_by(email=email).first()
-    session['user'] = existing.email
+    session['user'] = email
     if existing is None:
+        first_user = User.query.filter_by(id=1).first()
+        if first_user is None:
+            user = User(email=email)
+            user.user_group = "administrator"
+            db.session.add(user)
+            db.session.commit()
+            change = user.email + " logged in for the first time.You are administrator now!"
+            send_email(change)
+            session['user'] = user.email
+            return redirect(url_for('index'))
         user = User(email=email)
         db.session.add(user)
         db.session.commit()
