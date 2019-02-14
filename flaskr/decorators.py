@@ -5,6 +5,3 @@ def asynchronous(f):
         thr = Thread(target=f, args=args, kwargs=kwargs)
         thr.start()
     return wrapper
-
-
-#What is this for within the email stuff?

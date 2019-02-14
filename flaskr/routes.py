@@ -1,3 +1,4 @@
+from smtplib import SMTPException
 from flask import redirect, url_for, session, request, render_template, flash
 from flaskr import app, db, mail
 from flaskr.models import User, LeaveRequest, LeaveCategory
@@ -193,6 +194,17 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
+
+def create_default_cat():
+    categories = LeaveCategory.query.all()
+    if not categories:
+        young = LeaveCategory(category='Young', max_days='20')
+        old = LeaveCategory(category='Old', max_days='30')
+        db.session.add(young)
+        db.session.add(old)
+        db.session.commit()
+
+
 @app.route('/login/authorized')
 def authorized():
     resp = google.authorized_response()
@@ -208,12 +220,13 @@ def authorized():
     existing = User.query.filter_by(email=email).first()
     session['user'] = email
     if existing is None:
-        first_user = User.query.filter_by(id=1).first()
-        if first_user is None:
+        first_user = User.query.all()
+        if not first_user:
             user = User(email=email)
             user.user_group = "administrator"
             db.session.add(user)
             db.session.commit()
+            create_default_cat()
             change = user.email + " logged in for the first time.You are administrator now!"
             send_email(change)
             session['user'] = user.email
@@ -246,7 +259,12 @@ def get_days_left(user):
 @asynchronous
 def send_async_email(app, msg):
     with app.app_context():
-        mail.send(msg)
+        try:
+            mail.send(msg)
+        except SMTPException:
+            pass
+        except AssertionError:
+            pass
 
 def send_email(change, email=None):
     admins = User.query.filter_by(user_group='administrator', notification=True).all()
