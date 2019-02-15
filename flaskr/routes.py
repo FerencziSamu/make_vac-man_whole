@@ -168,7 +168,7 @@ def handle_acc():
 @app.route('/handle_cat', methods=["POST"])
 def handle_cat():
     delete = request.form.get('delete')
-    add = request.form.get('add')
+    new = request.form.get('add')
     max_days = request.form.get('max_days')
     if delete is not None:
         category = LeaveCategory.query.filter_by(id=delete).first()
@@ -177,11 +177,13 @@ def handle_cat():
         change = category.category + " leave category has been deleted."
         send_email(change)
     else:
-        category = LeaveCategory(category=add, max_days=max_days)
-        db.session.add(category)
-        db.session.commit()
-        change = category.category + " leave category has been added."
-        send_email(change)
+        cat = LeaveCategory(category=new, max_days=max_days)
+        categories = LeaveCategory.query.filter_by(category=new).first()
+        if categories is None:
+            db.session.add(cat)
+            db.session.commit()
+            change = cat.category + " leave category has been added."
+            send_email(change)
     return redirect(url_for('admin'))
 
 @app.route('/login')
@@ -259,12 +261,12 @@ def get_days_left(user):
 @asynchronous
 def send_async_email(app, msg):
     with app.app_context():
-        # try:
+        try:
             mail.send(msg)
-        # except SMTPException:
-        #     pass
-        # except AssertionError:
-        #     pass
+        except SMTPException:
+            pass
+        except AssertionError:
+            pass
 
 def send_email(change, email=None):
     admins = User.query.filter_by(user_group='administrator', notification=True).all()
