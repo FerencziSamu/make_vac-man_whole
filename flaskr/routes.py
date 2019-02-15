@@ -259,12 +259,12 @@ def get_days_left(user):
 @asynchronous
 def send_async_email(app, msg):
     with app.app_context():
-        try:
+        # try:
             mail.send(msg)
-        except SMTPException:
-            pass
-        except AssertionError:
-            pass
+        # except SMTPException:
+        #     pass
+        # except AssertionError:
+        #     pass
 
 def send_email(change, email=None):
     admins = User.query.filter_by(user_group='administrator', notification=True).all()
