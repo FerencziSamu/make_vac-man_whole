@@ -3,7 +3,7 @@ from flask import redirect, url_for, session, request, render_template, flash
 from flaskr import app, db, mail
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
-from flask_oauthlib.client import OAuth
+from flask_oauthlib.client import OAuth, OAuthException
 from flask_mail import Message
 import datetime
 import json
@@ -31,18 +31,21 @@ def index():
 
 @app.route('/admin')
 def admin():
-    current_user = get_current_user()
-    if current_user.user_group == 'administrator':
-        users = User.query.all()
-        leave_categories = LeaveCategory.query.all()
-        page = request.args.get('page', 1, type=int)
-        leave_requests = LeaveRequest.query.filter_by(state='pending').paginate(page, app.config.get('REQUESTS_PER_PAGE_ADMIN'), False)
-        next_url = url_for('admin', page=leave_requests.next_num) \
-        if leave_requests.has_next else None
-        prev_url = url_for('admin', page=leave_requests.prev_num) \
-        if leave_requests.has_prev else None
-        return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'))
-    return redirect(url_for('index'))
+    try:
+        current_user = get_current_user()
+        if current_user.user_group == 'administrator':
+            users = User.query.all()
+            leave_categories = LeaveCategory.query.all()
+            page = request.args.get('page', 1, type=int)
+            leave_requests = LeaveRequest.query.filter_by(state='pending').paginate(page, app.config.get('REQUESTS_PER_PAGE_ADMIN'), False)
+            next_url = url_for('admin', page=leave_requests.next_num) \
+            if leave_requests.has_next else None
+            prev_url = url_for('admin', page=leave_requests.prev_num) \
+            if leave_requests.has_prev else None
+            return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'))
+        return redirect(url_for('index'))
+    except OAuthException:
+        return redirect(url_for('logout'))
 
 @app.route('/requests')
 def requests():
@@ -59,12 +62,15 @@ def requests():
 
 @app.route('/account')
 def account():
-    current_user = get_current_user()
-    if current_user.leave_category is None:
-        days_left = "You don't have a leave category yet."
-    else:
-        days_left = get_days_left(current_user)
-    return render_template('account.html', current_user=current_user, days_left=days_left)
+    try:
+        current_user = get_current_user()
+        if current_user.leave_category is None:
+            days_left = "You don't have a leave category yet."
+        else:
+            days_left = get_days_left(current_user)
+        return render_template('account.html', current_user=current_user, days_left=days_left)
+    except AttributeError:
+        return redirect(url_for('logout'))
 
 @app.route('/save_request', methods=["GET","POST"])
 def save_request():
@@ -141,9 +147,9 @@ def handle_acc():
 
         if delete_email is not None:
             user = User.query.filter_by(email=delete_email).first()
+            change = "The registration of " + user.email + " has been declined!"
             db.session.delete(user)
             db.session.commit()
-            change = user_email + "'s account has been deleted."
             send_email(change, user_email)
         elif approve_email is not None:
             user = User.query.filter_by(email=approve_email).first()
@@ -250,10 +256,13 @@ def dateformat(date):
     return date.strftime('%Y-%m-%d')
 
 def get_current_user():
-    raw_data = json.dumps(google.get('userinfo').data)
-    data = json.loads(raw_data)
-    email = data['email']
-    return User.query.filter_by(email=email).first()
+    try:
+        raw_data = json.dumps(google.get('userinfo').data)
+        data = json.loads(raw_data)
+        email = data['email']
+        return User.query.filter_by(email=email).first()
+    except KeyError:
+        return redirect(url_for('logout'))
 
 def get_days_left(user):
     return user.leave_category.max_days - user.days
