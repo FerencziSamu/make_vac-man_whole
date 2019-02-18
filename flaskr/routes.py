@@ -6,6 +6,7 @@ from .decorators import asynchronous
 from flask_oauthlib.client import OAuth, OAuthException
 from flask_mail import Message
 import datetime
+import time
 import json
 
 REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs console
@@ -199,8 +200,13 @@ def report():
             return render_template('report.html')
         else:
             report_value = request.form['report']
+            ts = time.time()
+            report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            user = session.get('user')
             f = open("report.txt", "w+")
             f.write(report_value)
+            f.write(report_time)
+            f.write(user)
             f.close()
             return render_template('report.html', success=True)
     redirect(url_for('login'))
