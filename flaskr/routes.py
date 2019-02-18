@@ -192,6 +192,19 @@ def handle_cat():
             send_email(change)
     return redirect(url_for('admin'))
 
+@app.route('/report', methods= ['GET', 'POST'])
+def report():
+    if 'user' in session:
+        if request.method == 'GET':
+            return render_template('report.html')
+        else:
+            report_value = request.form['report']
+            f = open("report.txt", "w+")
+            f.write(report_value)
+            f.close()
+            return render_template('report.html', success=True)
+    redirect(url_for('login'))
+
 @app.route('/login')
 def login():
     return google.authorize(callback=url_for('authorized', _external=True))

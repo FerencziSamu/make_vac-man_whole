@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+   <title>Vac-Man</title>
+  </head>
+  <body>
+  {% block content %}
+  {% if request.method == 'GET' %}
+    <div class="modal-body">
+        <form action="" method="POST">
+          <textarea name="report" id="report" style="width:200px; height:600px;">Please be as specific as you can be!</textarea>
+          <br>
+          <input type="submit" value="Submit">
+        </form>
+    </div>
+  {% endif %}
+  {% if success %}
+    <h1>Report has been sent! You may close this window now!</h1>
+  {% endif %}
+  {% endblock content %}
+</body>
