@@ -1,6 +1,6 @@
 from smtplib import SMTPException
 from flask import redirect, url_for, session, request, render_template, flash
-from flaskr import app, db, mail, os
+from flaskr import app, db, mail
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
 from flask_oauthlib.client import OAuth, OAuthException
@@ -207,7 +207,7 @@ def report():
             f.write(user + " " + report_time + " " + report_value + "\n")
             f.close()
             email = [app.config.get('USER_EMAIL')]
-            msg = Message('Vacation Management',
+            msg = Message('Vacation Management Error Report',
                           sender='noreply@demo.com',
                           recipients=email)
             msg.body = f'''New report: {user} {report_time} {report_value}'''
