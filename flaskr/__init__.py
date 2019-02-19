@@ -12,6 +12,7 @@ app.config.from_mapping(
     SECRET_KEY='dev',
     SQLALCHEMY_DATABASE_URI='sqlite:///site.db'
 )
+
 db = SQLAlchemy(app)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -22,8 +23,13 @@ mail = Mail(app)
 
 from flaskr import routes
 
-# ensure the instance folder exists
+# ensure the instance and reports folder exists
 try:
-    os.makedirs(app.instance_path)
+    os.makedirs("flaskr/" + app.instance_path)
+except OSError:
+    pass
+
+try:
+    os.mkdir("flaskr/reports", 0o777)
 except OSError:
     pass

@@ -1,6 +1,6 @@
 from smtplib import SMTPException
 from flask import redirect, url_for, session, request, render_template, flash
-from flaskr import app, db, mail
+from flaskr import app, db, mail, os
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
 from flask_oauthlib.client import OAuth, OAuthException
@@ -203,16 +203,14 @@ def report():
             ts = time.time()
             report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             user = session.get('user')
-            f = open("report.txt", "a+")
+            f = open("flaskr/reports/" + report_time, "a+")
             f.write(user + " " + report_time + " " + report_value + "\n")
             f.close()
             email = [app.config.get('USER_EMAIL')]
             msg = Message('Vacation Management',
                           sender='noreply@demo.com',
                           recipients=email)
-            msg.body = f'''New report:
-                {report_value} {user} {report_time}
-            '''
+            msg.body = f'''New report: {user} {report_time} {report_value}'''
             send_async_email(app, msg)
             return render_template('report.html', success=True)
     redirect(url_for('login'))
