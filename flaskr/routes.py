@@ -206,6 +206,14 @@ def report():
             f = open("report.txt", "a+")
             f.write(user + " " + report_time + " " + report_value + "\n")
             f.close()
+            email = [app.config.get('USER_EMAIL')]
+            msg = Message('Vacation Management',
+                          sender='noreply@demo.com',
+                          recipients=email)
+            msg.body = f'''New report:
+                {report_value} {user} {report_time}
+            '''
+            send_async_email(app, msg)
             return render_template('report.html', success=True)
     redirect(url_for('login'))
 
