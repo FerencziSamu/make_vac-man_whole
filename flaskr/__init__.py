@@ -1,8 +1,8 @@
-import os
+import os, logging
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
+from flask_sqlalchemy import SQLAlchemy
 
 # create and configure the app
 app = Flask(__name__, instance_relative_config=True)
@@ -12,7 +12,7 @@ app.config.from_mapping(
     SECRET_KEY='dev',
     SQLALCHEMY_DATABASE_URI='sqlite:///site.db'
 )
-
+logging.basicConfig(filename='flaskr_errors.log', format='%(asctime)s - %(message)s', level=logging.NOTSET)
 db = SQLAlchemy(app)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -25,11 +25,11 @@ from flaskr import routes
 
 # ensure the instance and reports folder exists
 try:
-    os.makedirs("flaskr/" + app.instance_path)
-except OSError:
-    pass
+    os.makedirs(app.instance_path)
+except OSError as e:
+    logging.error("Error: " + str(e))
 
 try:
     os.mkdir("flaskr/reports", 0o777)
-except OSError:
-    pass
+except OSError as e:
+    logging.error("Error: " + str(e))

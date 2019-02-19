@@ -1,6 +1,6 @@
 from smtplib import SMTPException
 from flask import redirect, url_for, session, request, render_template, flash
-from flaskr import app, db, mail
+from flaskr import app, db, mail, logging
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
 from flask_oauthlib.client import OAuth, OAuthException
@@ -45,7 +45,8 @@ def admin():
             if leave_requests.has_prev else None
             return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'))
         return redirect(url_for('index'))
-    except OAuthException:
+    except OAuthException as e:
+        logging.error("Exception: " + str(e))
         return redirect(url_for('logout'))
 
 @app.route('/requests')
@@ -70,7 +71,8 @@ def account():
         else:
             days_left = get_days_left(current_user)
         return render_template('account.html', current_user=current_user, days_left=days_left)
-    except AttributeError:
+    except AttributeError as e:
+        logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
 
 @app.route('/save_request', methods=["GET","POST"])
@@ -284,7 +286,8 @@ def get_current_user():
         data = json.loads(raw_data)
         email = data['email']
         return User.query.filter_by(email=email).first()
-    except KeyError:
+    except KeyError as e:
+        logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
 
 def get_days_left(user):
@@ -295,10 +298,10 @@ def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
-        except SMTPException:
-            pass
-        except AssertionError:
-            pass
+        except SMTPException as e:
+            logging.error("Exception: " + str(e))
+        except AssertionError as e:
+            logging.error("Error: " + str(e))
 
 def send_email(change, email=None):
     admins = User.query.filter_by(user_group='administrator', notification=True).all()
