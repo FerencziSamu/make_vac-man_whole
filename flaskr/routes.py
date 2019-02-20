@@ -14,14 +14,15 @@ REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs co
 oauth = OAuth()
 
 google = oauth.remote_app('google',
-base_url='https://www.googleapis.com/oauth2/v1/',
-authorize_url='https://accounts.google.com/o/oauth2/auth',
-request_token_url=None,
-request_token_params={'scope': 'email'},
-access_token_url='https://accounts.google.com/o/oauth2/token',
-access_token_method='POST',
-consumer_key=app.config.get('GOOGLE_ID'),
-consumer_secret=app.config.get('GOOGLE_SECRET'))
+                          base_url='https://www.googleapis.com/oauth2/v1/',
+                          authorize_url='https://accounts.google.com/o/oauth2/auth',
+                          request_token_url=None,
+                          request_token_params={'scope': 'email'},
+                          access_token_url='https://accounts.google.com/o/oauth2/token',
+                          access_token_method='POST',
+                          consumer_key=app.config.get('GOOGLE_ID'),
+                          consumer_secret=app.config.get('GOOGLE_SECRET'))
+
 
 @app.route('/')
 def index():
@@ -29,6 +30,7 @@ def index():
         current_user = get_current_user()
         return render_template('index.html', current_user=current_user)
     return render_template('index.html', current_user=None)
+
 
 @app.route('/admin')
 def admin():
@@ -38,29 +40,36 @@ def admin():
             users = User.query.all()
             leave_categories = LeaveCategory.query.all()
             page = request.args.get('page', 1, type=int)
-            leave_requests = LeaveRequest.query.filter_by(state='pending').paginate(page, app.config.get('REQUESTS_PER_PAGE_ADMIN'), False)
+            leave_requests = LeaveRequest.query.filter_by(state='pending').paginate(page, app.config.get(
+                'REQUESTS_PER_PAGE_ADMIN'), False)
             next_url = url_for('admin', page=leave_requests.next_num) \
-            if leave_requests.has_next else None
+                if leave_requests.has_next else None
             prev_url = url_for('admin', page=leave_requests.prev_num) \
-            if leave_requests.has_prev else None
-            return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'), current_user=current_user)
+                if leave_requests.has_prev else None
+            return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url,
+                                   prev_url=prev_url, leave_categories=leave_categories,
+                                   user_groups=app.config.get('USER_GROUPS'), current_user=current_user)
         return redirect(url_for('index'))
     except OAuthException as e:
         logging.error("Exception: " + str(e))
         return redirect(url_for('logout'))
+
 
 @app.route('/requests')
 def requests():
     current_user = get_current_user()
     if current_user.user_group == 'administrator':
         page = request.args.get('page', 1, type=int)
-        leave_requests = LeaveRequest.query.order_by(LeaveRequest.start_date.asc()).paginate(page, app.config.get('REQUESTS_PER_PAGE'), False)
+        leave_requests = LeaveRequest.query.order_by(LeaveRequest.start_date.asc()).paginate(page, app.config.get(
+            'REQUESTS_PER_PAGE'), False)
         next_url = url_for('requests', page=leave_requests.next_num) \
-        if leave_requests.has_next else None
+            if leave_requests.has_next else None
         prev_url = url_for('requests', page=leave_requests.prev_num) \
-        if leave_requests.has_prev else None
-        return render_template('requests.html', leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, current_user=current_user)
+            if leave_requests.has_prev else None
+        return render_template('requests.html', leave_requests=leave_requests.items, next_url=next_url,
+                               prev_url=prev_url, current_user=current_user)
     return redirect(url_for('index'))
+
 
 @app.route('/account')
 def account():
@@ -75,7 +84,8 @@ def account():
         logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
 
-@app.route('/save_request', methods=["GET","POST"])
+
+@app.route('/save_request', methods=["GET", "POST"])
 def save_request():
     email = request.form.get('current_user')
     current_user = getUserByEmail(email=email)
@@ -83,23 +93,27 @@ def save_request():
         return redirect(url_for('index'))
     start_date_split = request.form.get('start-date').split("/")
     end_date_split = request.form.get('end-date').split("/")
-    start_date = datetime.datetime.strptime(start_date_split[2] + '-' + start_date_split[0] + '-' + start_date_split[1], '%Y-%m-%d')
-    end_date = datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
+    start_date = datetime.datetime.strptime(start_date_split[2] + '-' + start_date_split[0] + '-' + start_date_split[1],
+                                            '%Y-%m-%d')
+    end_date = datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1],
+                                          '%Y-%m-%d')
     days = (end_date - start_date).days
     if days + 1 <= get_days_left(current_user):
         leave_request = LeaveRequest(start_date=start_date,
-                                    end_date=end_date,
-                                    state='pending',
-                                    user_id=current_user.id)
+                                     end_date=end_date,
+                                     state='pending',
+                                     user_id=current_user.id)
         if current_user.user_group == 'administrator':
             leave_request.state = 'accepted'
         current_user.days += days + 1
         add_to_db(leave_request)
         change = current_user.email + " created a leave request."
         send_email(change)
+        logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
         return redirect(url_for('index'))
     flash("You only have " + str(get_days_left(current_user)) + " days left!")
     return redirect(url_for('index'))
+
 
 @app.route('/handle_request', methods=["POST"])
 def handle_request():
@@ -115,6 +129,8 @@ def handle_request():
             db.session.commit()
             change = leave_request.user.email + "'s leave request has been accepted."
             send_email(change, leave_request.user.email)
+            logging.info("Leave request by " + leave_request.user.email + " id: " + accept_request + ", has been "
+            "accepted by " + session['user'])
         else:
             leave_request = getLeaveRequest(id=decline_request)
             leave_request.state = 'declined'
@@ -123,11 +139,14 @@ def handle_request():
             db.session.commit()
             change = leave_request.user.email + "'s leave request has been declined."
             send_email(change, leave_request.user.email)
+            logging.info("Leave request by " + leave_request.user.email + " id: " + decline_request + ", has been "
+            "declined by " + session['user'])
         if request.form.get('site'):
             return redirect(url_for('requests'))
     return redirect(url_for('admin'))
 
-@app.route('/handle_acc', methods=["GET","POST"])
+
+@app.route('/handle_acc', methods=["GET", "POST"])
 def handle_acc():
     if request.method == 'POST':
         delete_email = request.form.get('delete')
@@ -142,10 +161,12 @@ def handle_acc():
                 user = getUserByEmail(email=on)
                 user.notification = False
                 db.session.commit()
+                logging.info("Notification has been set to FALSE by " + session['user'])
             else:
                 user = getUserByEmail(email=off)
                 user.notification = True
                 db.session.commit()
+                logging.info("Notification has been set to TRUE by " + session['user'])
             return redirect(url_for('account'))
 
         if delete_email is not None:
@@ -154,25 +175,31 @@ def handle_acc():
             db.session.delete(user)
             db.session.commit()
             send_email(change, user_email)
+            logging.info(user.email + " has been declined by " + session['user'])
         elif approve_email is not None:
             user = getUserByEmail(email=approve_email)
             user.user_group = 'viewer'
             db.session.commit()
             change = user.email + " has been approved."
             send_email(change, user.email)
+            logging.info(user.email + " has been accepted by " + session['user'])
         elif category is not None:
             user = getUserByEmail(email=user_email)
             user.leave_category_id = category
             db.session.commit()
             change = user.email + "'s category has been changed."
             send_email(change, user.email)
+            cat = LeaveCategory.query.filter_by(id=category).first()
+            logging.info(user.email + " 's category has been changed to " + cat.category + " by " + session['user'])
         else:
             user = getUserByEmail(email=user_email)
             user.user_group = group
             db.session.commit()
             change = user.email + "'s user group has been changed."
             send_email(change, user.email)
+            logging.info(user.email + " 's user group has been changed to " + user.user_group + " by " + session['user'])
     return redirect(url_for('admin'))
+
 
 @app.route('/handle_cat', methods=["POST"])
 def handle_cat():
@@ -185,6 +212,7 @@ def handle_cat():
         db.session.commit()
         change = category.category + " leave category has been deleted."
         send_email(change)
+        logging.info(category.category + " category has been deleted by " + session['user'])
     else:
         cat = LeaveCategory(category=new, max_days=max_days)
         categories = LeaveCategory.query.filter_by(category=new).first()
@@ -192,9 +220,11 @@ def handle_cat():
             add_to_db(cat)
             change = cat.category + " leave category has been added."
             send_email(change)
+            logging.info(cat.category + " category has been created by " + session['user'])
     return redirect(url_for('admin'))
 
-@app.route('/report', methods= ['GET', 'POST'])
+
+@app.route('/report', methods=['GET', 'POST'])
 def report():
     if 'user' in session:
         if request.method == 'GET':
@@ -216,15 +246,18 @@ def report():
             return render_template('report.html', success=True)
     return redirect(url_for('login'))
 
+
 @app.route('/login')
 def login():
     return google.authorize(callback=url_for('authorized', _external=True))
+
 
 @app.route('/logout')
 def logout():
     session.pop('google_token', None)
     session.pop('user', None)
     return redirect(url_for('index'))
+
 
 def create_default_cat():
     categories = LeaveCategory.query.all()
@@ -233,6 +266,8 @@ def create_default_cat():
         old = LeaveCategory(category='Old', max_days='30')
         add_to_db(young)
         add_to_db(old)
+        logging.info("Default categories has been created.")
+
 
 @app.route('/login/authorized')
 def authorized():
@@ -241,13 +276,14 @@ def authorized():
         return 'Access denied: reason=%s error=%s' % (
             request.args['error_reason'],
             request.args['error_description']
-            )
+        )
     session['google_token'] = (resp['access_token'], '')
     raw_data = json.dumps(google.get('userinfo').data)
     data = json.loads(raw_data)
     email = data['email']
     existing = getUserByEmail(email=email)
     session['user'] = email
+    logging.info(session['user'] + " has logged in.")
     if existing is None:
         first_user = User.query.all()
         if not first_user:
@@ -258,44 +294,54 @@ def authorized():
             change = user.email + " logged in for the first time.You are administrator now!"
             send_email(change)
             session['user'] = user.email
+            logging.info(session['user'] + " has logged in.")
             return redirect(url_for('index'))
         user = User(email=email)
         add_to_db(user)
         change = user.email + " logged in for the first time."
         send_email(change)
         session['user'] = user.email
+        logging.info(session['user'] + " has logged in.")
     return redirect(url_for('index'))
+
 
 @google.tokengetter
 def get_google_oauth_token():
     return session.get('google_token')
 
+
 @app.template_filter('dateformat')
 def dateformat(date):
     return date.strftime('%Y-%m-%d')
+
 
 def add_to_db(item):
     db.session.add(item)
     db.session.commit()
 
+
 def get_current_user():
+    raw_data = json.dumps(google.get('userinfo').data)
+    data = json.loads(raw_data)
+    email = data['email']
     try:
-        raw_data = json.dumps(google.get('userinfo').data)
-        data = json.loads(raw_data)
-        email = data['email']
         return getUserByEmail(email=email)
     except KeyError as e:
         logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
 
+
 def get_days_left(user):
     return user.leave_category.max_days - user.days
+
 
 def getUserByEmail(email):
     return User.query.filter_by(email=email).first()
 
+
 def getLeaveRequest(id):
     return LeaveRequest.query.filter_by(id=id).first()
+
 
 @asynchronous
 def send_async_email(app, msg):
@@ -307,6 +353,7 @@ def send_async_email(app, msg):
         except AssertionError as e:
             logging.error("Error: " + str(e))
 
+
 def send_email(change, email=None):
     admins = User.query.filter_by(user_group='administrator', notification=True).all()
     emails = []
@@ -317,8 +364,8 @@ def send_email(change, email=None):
         if user.user_group != 'administrator' and user.notification:
             emails.append(user.email)
     msg = Message('Vacation Management',
-                sender='noreply@demo.com',
-                recipients=emails)
+                  sender='noreply@demo.com',
+                  recipients=emails)
     msg.body = f'''There has been a change:
         {change}
     If you would like to turn off the notifications then turn it off in your account settings.'''
