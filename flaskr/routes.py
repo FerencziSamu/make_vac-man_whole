@@ -43,7 +43,7 @@ def admin():
             if leave_requests.has_next else None
             prev_url = url_for('admin', page=leave_requests.prev_num) \
             if leave_requests.has_prev else None
-            return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'))
+            return render_template('admin.html', users=users, leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, leave_categories=leave_categories, user_groups=app.config.get('USER_GROUPS'), current_user=current_user)
         return redirect(url_for('index'))
     except OAuthException as e:
         logging.error("Exception: " + str(e))
@@ -59,7 +59,7 @@ def requests():
         if leave_requests.has_next else None
         prev_url = url_for('requests', page=leave_requests.prev_num) \
         if leave_requests.has_prev else None
-        return render_template('requests.html', leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url)
+        return render_template('requests.html', leave_requests=leave_requests.items, next_url=next_url, prev_url=prev_url, current_user=current_user)
     return redirect(url_for('index'))
 
 @app.route('/account')
@@ -77,7 +77,8 @@ def account():
 
 @app.route('/save_request', methods=["GET","POST"])
 def save_request():
-    current_user = User.query.filter_by(email=request.form.get('current_user')).first()
+    email = request.form.get('current_user')
+    current_user = getUserByEmail(email=email)
     if current_user.user_group == 'viewer' or current_user.user_group == 'unapproved':
         return redirect(url_for('index'))
     start_date_split = request.form.get('start-date').split("/")
@@ -86,10 +87,10 @@ def save_request():
     end_date = datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
     days = (end_date - start_date).days
     if days + 1 <= get_days_left(current_user):
-        leave_request = LeaveRequest(start_date = start_date,
-                                    end_date = end_date,
-                                    state = 'pending',
-                                    user_id = current_user.id)
+        leave_request = LeaveRequest(start_date=start_date,
+                                    end_date=end_date,
+                                    state='pending',
+                                    user_id=current_user.id)
         if current_user.user_group == 'administrator':
             leave_request.state = 'accepted'
         current_user.days += days + 1
@@ -107,7 +108,7 @@ def handle_request():
         accept_request = request.form.get('accept')
         decline_request = request.form.get('decline')
         if accept_request is not None:
-            leave_request = LeaveRequest.query.filter_by(id=accept_request).first()
+            leave_request = getLeaveRequest(id=accept_request)
             if leave_request.state != 'pending':
                 days = leave_request.end_date - leave_request.start_date
                 leave_request.user.days += days.days + 1
@@ -116,7 +117,7 @@ def handle_request():
             change = leave_request.user.email + "'s leave request has been accepted."
             send_email(change, leave_request.user.email)
         else:
-            leave_request = LeaveRequest.query.filter_by(id=decline_request).first()
+            leave_request = getLeaveRequest(id=decline_request)
             leave_request.state = 'declined'
             days_back = leave_request.end_date - leave_request.start_date
             leave_request.user.days -= days_back.days + 1
@@ -139,35 +140,35 @@ def handle_acc():
         off = request.form.get('off')
         if on or off is not None:
             if on is not None:
-                user = User.query.filter_by(email=on).first()
+                user = getUserByEmail(email=on)
                 user.notification = False
                 db.session.commit()
             else:
-                user = User.query.filter_by(email=off).first()
+                user = getUserByEmail(email=off)
                 user.notification = True
                 db.session.commit()
             return redirect(url_for('account'))
 
         if delete_email is not None:
-            user = User.query.filter_by(email=delete_email).first()
+            user = getUserByEmail(email=delete_email)
             change = "The registration of " + user.email + " has been declined!"
             db.session.delete(user)
             db.session.commit()
             send_email(change, user_email)
         elif approve_email is not None:
-            user = User.query.filter_by(email=approve_email).first()
+            user = getUserByEmail(email=approve_email)
             user.user_group = 'viewer'
             db.session.commit()
             change = user.email + " has been approved."
             send_email(change, user.email)
         elif category is not None:
-            user = User.query.filter_by(email=user_email).first()
+            user = getUserByEmail(email=user_email)
             user.leave_category_id = category
             db.session.commit()
             change = user.email + "'s category has been changed."
             send_email(change, user.email)
         else:
-            user = User.query.filter_by(email=user_email).first()
+            user = getUserByEmail(email=user_email)
             user.user_group = group
             db.session.commit()
             change = user.email + "'s user group has been changed."
@@ -215,7 +216,7 @@ def report():
             msg.body = f'''New report: {user} {report_time} {report_value}'''
             send_async_email(app, msg)
             return render_template('report.html', success=True)
-    redirect(url_for('login'))
+    return redirect(url_for('login'))
 
 @app.route('/login')
 def login():
@@ -227,7 +228,6 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
-
 def create_default_cat():
     categories = LeaveCategory.query.all()
     if not categories:
@@ -236,7 +236,6 @@ def create_default_cat():
         db.session.add(young)
         db.session.add(old)
         db.session.commit()
-
 
 @app.route('/login/authorized')
 def authorized():
@@ -250,7 +249,7 @@ def authorized():
     raw_data = json.dumps(google.get('userinfo').data)
     data = json.loads(raw_data)
     email = data['email']
-    existing = User.query.filter_by(email=email).first()
+    existing = getUserByEmail(email=email)
     session['user'] = email
     if existing is None:
         first_user = User.query.all()
@@ -280,12 +279,16 @@ def get_google_oauth_token():
 def dateformat(date):
     return date.strftime('%Y-%m-%d')
 
+# def add_to_db(item):
+#     db.session.add(item)
+#     db.session.commit()
+
 def get_current_user():
     try:
         raw_data = json.dumps(google.get('userinfo').data)
         data = json.loads(raw_data)
         email = data['email']
-        return User.query.filter_by(email=email).first()
+        return getUserByEmail(email=email)
     except KeyError as e:
         logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
@@ -293,12 +296,18 @@ def get_current_user():
 def get_days_left(user):
     return user.leave_category.max_days - user.days
 
+def getUserByEmail(email):
+    return User.query.filter_by(email=email).first()
+
+def getLeaveRequest(id):
+    return LeaveRequest.query.filter_by(id=id).first()
+
 @asynchronous
 def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
-        except SMTPException as e:
+        except (SMTPException, AssertionError) as e:
             logging.error("Exception: " + str(e))
         except AssertionError as e:
             logging.error("Error: " + str(e))
@@ -309,7 +318,7 @@ def send_email(change, email=None):
     for admin in admins:
         emails.append(admin.email)
     if email is not None:
-        user = User.query.filter_by(email=email).first()
+        user = getUserByEmail(email=email)
         if user.user_group != 'administrator' and user.notification:
             emails.append(user.email)
     msg = Message('Vacation Management',

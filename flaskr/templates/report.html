@@ -11,9 +11,14 @@
   {% if request.method == 'GET' %}
     <div class="modal-body">
         <form action="" method="POST">
-          <textarea name="report" id="report" style="width:700px; height:700px;">Please be as specific as you can be!</textarea>
+          <textarea name="report" id="report" style="width:700px; height:700px;">
+          Please be as specific as you can be and tell us
+          what were you doing when the error occurred,
+          what is the error itself and if you have seen any error message, please paste it here (if it is possible),
+          thank you in advance!
+          </textarea>
           <br>
-          <input type="submit" value="Send">
+          <input type="submit" value="Send report">
         </form>
     </div>
   {% endif %}
