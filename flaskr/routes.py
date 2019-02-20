@@ -94,8 +94,7 @@ def save_request():
         if current_user.user_group == 'administrator':
             leave_request.state = 'accepted'
         current_user.days += days + 1
-        db.session.add(leave_request)
-        db.session.commit()
+        add_to_db(leave_request)
         change = current_user.email + " created a leave request."
         send_email(change)
         return redirect(url_for('index'))
@@ -190,8 +189,7 @@ def handle_cat():
         cat = LeaveCategory(category=new, max_days=max_days)
         categories = LeaveCategory.query.filter_by(category=new).first()
         if categories is None:
-            db.session.add(cat)
-            db.session.commit()
+            add_to_db(cat)
             change = cat.category + " leave category has been added."
             send_email(change)
     return redirect(url_for('admin'))
@@ -233,9 +231,8 @@ def create_default_cat():
     if not categories:
         young = LeaveCategory(category='Young', max_days='20')
         old = LeaveCategory(category='Old', max_days='30')
-        db.session.add(young)
-        db.session.add(old)
-        db.session.commit()
+        add_to_db(young)
+        add_to_db(old)
 
 @app.route('/login/authorized')
 def authorized():
@@ -256,16 +253,14 @@ def authorized():
         if not first_user:
             user = User(email=email)
             user.user_group = "administrator"
-            db.session.add(user)
-            db.session.commit()
+            add_to_db(user)
             create_default_cat()
             change = user.email + " logged in for the first time.You are administrator now!"
             send_email(change)
             session['user'] = user.email
             return redirect(url_for('index'))
         user = User(email=email)
-        db.session.add(user)
-        db.session.commit()
+        add_to_db(user)
         change = user.email + " logged in for the first time."
         send_email(change)
         session['user'] = user.email
@@ -279,9 +274,9 @@ def get_google_oauth_token():
 def dateformat(date):
     return date.strftime('%Y-%m-%d')
 
-# def add_to_db(item):
-#     db.session.add(item)
-#     db.session.commit()
+def add_to_db(item):
+    db.session.add(item)
+    db.session.commit()
 
 def get_current_user():
     try:
