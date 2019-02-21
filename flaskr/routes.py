@@ -8,6 +8,7 @@ from flask_mail import Message
 import datetime
 import time
 import json
+import requests as samu
 
 REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs console
 
@@ -50,7 +51,7 @@ def admin():
                                    user_groups=app.config.get('USER_GROUPS'), current_user=current_user)
         return redirect(url_for('index'))
     except OAuthException as e:
-        logging.error("Exception: " + str(e))
+        logging.exception("Exception: " + str(e))
         return redirect(url_for('logout'))
     except AttributeError as e:
         logging.error("Error " + str(e))
@@ -256,7 +257,13 @@ def report():
 
 @app.route('/login')
 def login():
+    try_this_out()
     return google.authorize(callback=url_for('authorized', _external=True))
+
+def try_this_out():
+    r = samu.get('http://localhost:5000/admin')
+    print(r.status_code)
+    print(r.headers)
 
 @app.route('/logout')
 def logout():
@@ -271,7 +278,7 @@ def create_default_cat():
         old = LeaveCategory(category='Old', max_days='30')
         add_to_db(young)
         add_to_db(old)
-        logging.info("Default categories has been created.")
+        logging.info("Default categories have been created.")
 
 @app.route('/login/authorized')
 def authorized():
@@ -353,18 +360,21 @@ def send_async_email(app, msg):
             logging.error("Error: " + str(e))
 
 def send_email(change, email=None):
-    admins = User.query.filter_by(user_group='administrator', notification=True).all()
-    emails = []
-    for admin in admins:
-        emails.append(admin.email)
-    if email is not None:
-        user = getUserByEmail(email=email)
-        if user.user_group != 'administrator' and user.notification:
-            emails.append(user.email)
-    msg = Message('Vacation Management',
-                  sender='noreply@demo.com',
-                  recipients=emails)
-    msg.body = f'''There has been a change:
-        {change}
-    If you would like to turn off the notifications then turn it off in your account settings.'''
-    send_async_email(app, msg)
+    try:
+        admins = User.query.filter_by(user_group='administrator', notification=True).all()
+        emails = []
+        for admin in admins:
+            emails.append(admin.email)
+        if email is not None:
+            user = getUserByEmail(email=email)
+            if user.user_group != 'administrator' and user.notification:
+                emails.append(user.email)
+        msg = Message('Vacation Management',
+                      sender='noreply@demo.com',
+                      recipients=emails)
+        msg.body = f'''There has been a change:
+            {change}
+        If you would like to turn off the notifications then turn it off in your account settings.'''
+        send_async_email(app, msg)
+    except SyntaxError as e:
+        logging.error("Error " + str(e))
