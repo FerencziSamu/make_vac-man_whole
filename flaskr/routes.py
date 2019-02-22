@@ -217,7 +217,6 @@ def handle_cat():
             logging.info(category.category + " category has been deleted by " + session['user'])
         else:
             cat = LeaveCategory(category=new, max_days=max_days)
-            # categories = LeaveCategory.query.filter_by(category=new).first()
             categories = get_leaveCategory({'category': new})
             if categories is None:
                 add_to_db(cat)

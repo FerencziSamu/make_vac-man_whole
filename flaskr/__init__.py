@@ -26,10 +26,10 @@ from flaskr import routes
 # ensure the instance and reports folder exists
 try:
     os.makedirs(app.instance_path)
-except OSError as e:
+except FileExistsError as e:
     logging.error("\n\n\n" + "Error: " + str(e))
 
 try:
     os.mkdir("flaskr/reports", 0o777)
-except OSError as e:
+except FileExistsError as e:
     logging.error("Error: " + str(e))
