@@ -5,10 +5,10 @@ from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
 from flask_oauthlib.client import OAuth, OAuthException
 from flask_mail import Message
+from sqlalchemy import exc
 import datetime
 import time
 import json
-import requests as samu
 
 REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs console
 
@@ -74,7 +74,7 @@ def requests():
         return redirect(url_for('index'))
     except AttributeError as e:
         logging.error("Error " + str(e))
-        return redirect(url_for('index'))
+    return redirect(url_for('index'))
 
 @app.route('/account')
 def account():
@@ -98,10 +98,8 @@ def save_request():
             return redirect(url_for('index'))
         start_date_split = request.form.get('start-date').split("/")
         end_date_split = request.form.get('end-date').split("/")
-        start_date = datetime.datetime.strptime(start_date_split[2] + '-' + start_date_split[0] + '-' + start_date_split[1],
-                                                '%Y-%m-%d')
-        end_date = datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1],
-                                              '%Y-%m-%d')
+        start_date = create_start_date(start_date_split)
+        end_date = create_end_date(end_date_split)
         days = (end_date - start_date).days
         if days + 1 <= get_days_left(current_user):
             leave_request = LeaveRequest(start_date=start_date,
@@ -178,8 +176,7 @@ def handle_acc():
         if delete_email is not None:
             user = getUserByEmail(email=delete_email)
             change = "The registration of " + user.email + " has been declined!"
-            db.session.delete(user)
-            db.session.commit()
+            delete_from_db(user)
             send_email(change, user_email)
             logging.info(user.email + " has been declined by " + session['user'])
         elif approve_email is not None:
@@ -213,21 +210,21 @@ def handle_cat():
         new = request.form.get('add')
         max_days = request.form.get('max_days')
         if delete is not None:
-            category = LeaveCategory.query.filter_by(id=delete).first()
-            db.session.delete(category)
-            db.session.commit()
+            category = get_leaveCategory({'id': delete})
+            delete_from_db(category)
             change = category.category + " leave category has been deleted."
             send_email(change)
             logging.info(category.category + " category has been deleted by " + session['user'])
         else:
             cat = LeaveCategory(category=new, max_days=max_days)
-            categories = LeaveCategory.query.filter_by(category=new).first()
+            # categories = LeaveCategory.query.filter_by(category=new).first()
+            categories = get_leaveCategory({'category': new})
             if categories is None:
                 add_to_db(cat)
                 change = cat.category + " leave category has been added."
                 send_email(change)
                 logging.info(cat.category + " category has been created by " + session['user'])
-        return redirect(url_for('index'))
+        return redirect(url_for('admin'))
     return redirect(url_for('index'))
 
 @app.route('/report', methods=['GET', 'POST'])
@@ -254,16 +251,12 @@ def report():
         return redirect(url_for('login'))
     except OAuthException as e:
         logging.exception("Exception " + str(e))
+    except Exception as e:
+        logging.exception("Exception " + str(e))
 
 @app.route('/login')
 def login():
-    try_this_out()
     return google.authorize(callback=url_for('authorized', _external=True))
-
-def try_this_out():
-    r = samu.get('http://localhost:5000/admin')
-    print(r.status_code)
-    print(r.headers)
 
 @app.route('/logout')
 def logout():
@@ -272,48 +265,54 @@ def logout():
     return redirect(url_for('index'))
 
 def create_default_cat():
-    categories = LeaveCategory.query.all()
-    if not categories:
-        young = LeaveCategory(category='Young', max_days='20')
-        old = LeaveCategory(category='Old', max_days='30')
-        add_to_db(young)
-        add_to_db(old)
-        logging.info("Default categories have been created.")
+    try:
+        categories = LeaveCategory.query.all()
+        if not categories:
+            young = LeaveCategory(category='Young', max_days='20')
+            old = LeaveCategory(category='Old', max_days='30')
+            add_to_db(young)
+            add_to_db(old)
+            logging.info("Default categories have been created.")
+    except Exception as e:
+        logging.exception("Exception at create_default_cat: " + str(e))
 
 @app.route('/login/authorized')
 def authorized():
-    resp = google.authorized_response()
-    if resp is None:
-        return 'Access denied: reason=%s error=%s' % (
-            request.args['error_reason'],
-            request.args['error_description']
-        )
-    session['google_token'] = (resp['access_token'], '')
-    raw_data = json.dumps(google.get('userinfo').data)
-    data = json.loads(raw_data)
-    email = data['email']
-    existing = getUserByEmail(email=email)
-    session['user'] = email
-    logging.info(session['user'] + " has logged in.")
-    if existing is None:
-        first_user = User.query.all()
-        if not first_user:
+    try:
+        resp = google.authorized_response()
+        if resp is None:
+            return 'Access denied: reason=%s error=%s' % (
+                request.args['error_reason'],
+                request.args['error_description']
+            )
+        session['google_token'] = (resp['access_token'], '')
+        raw_data = json.dumps(google.get('userinfo').data)
+        data = json.loads(raw_data)
+        email = data['email']
+        existing = getUserByEmail(email=email)
+        session['user'] = email
+        logging.info(session['user'] + " has logged in.")
+        if existing is None:
+            first_user = User.query.all()
+            if not first_user:
+                user = User(email=email)
+                user.user_group = "administrator"
+                add_to_db(user)
+                create_default_cat()
+                change = user.email + " logged in for the first time.You are administrator now!"
+                send_email(change)
+                session['user'] = user.email
+                logging.info(session['user'] + " has logged in.")
+                return redirect(url_for('index'))
             user = User(email=email)
-            user.user_group = "administrator"
             add_to_db(user)
-            create_default_cat()
-            change = user.email + " logged in for the first time.You are administrator now!"
+            change = user.email + " logged in for the first time."
             send_email(change)
             session['user'] = user.email
             logging.info(session['user'] + " has logged in.")
-            return redirect(url_for('index'))
-        user = User(email=email)
-        add_to_db(user)
-        change = user.email + " logged in for the first time."
-        send_email(change)
-        session['user'] = user.email
-        logging.info(session['user'] + " has logged in.")
-    return redirect(url_for('index'))
+        return redirect(url_for('index'))
+    except Exception as e:
+        logging.exception("Exception at login/authorized: " + str(e))
 
 @google.tokengetter
 def get_google_oauth_token():
@@ -324,8 +323,18 @@ def dateformat(date):
     return date.strftime('%Y-%m-%d')
 
 def add_to_db(item):
-    db.session.add(item)
-    db.session.commit()
+    try:
+        db.session.add(item)
+        db.session.commit()
+    except exc.SQLAlchemyError as e:
+        logging.exception("Exception: " + str(e))
+
+def delete_from_db(item):
+    try:
+        db.session.delete(item)
+        db.session.commit()
+    except exc.SQLAlchemyError as e:
+        logging.exception("Exception: " + str(e))
 
 def get_current_user():
     try:
@@ -344,18 +353,38 @@ def get_days_left(user):
     return user.leave_category.max_days - user.days
 
 def getUserByEmail(email):
-    return User.query.filter_by(email=email).first()
+    try:
+        return User.query.filter_by(email=email).first()
+    except exc.SQLAlchemyError as e:
+        logging.exception("Exception: " + str(e))
 
 def getLeaveRequest(id):
-    return LeaveRequest.query.filter_by(id=id).first()
+    try:
+        return LeaveRequest.query.filter_by(id=id).first()
+    except exc.SQLAlchemyError as e:
+        logging.exception("Exception: " + str(e))
+
+def get_leaveCategory(field=None):
+    try:
+        return LeaveCategory.query.filter_by(**field).first()
+    except exc.SQLAlchemyError as e:
+        logging.exception("Exception: " + str(e))
+
+def create_start_date(start_date_split):
+    return datetime.datetime.strptime(start_date_split[2] + '-' + start_date_split[0] + '-' + start_date_split[1],
+                                      '%Y-%m-%d')
+
+def create_end_date(end_date_split):
+    return datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
 
 @asynchronous
 def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
-        except (SMTPException, AssertionError) as e:
+        except SMTPException as e:
             logging.exception("Exception: " + str(e))
+            pass
         except AssertionError as e:
             logging.error("Error: " + str(e))
 
@@ -374,7 +403,7 @@ def send_email(change, email=None):
                       recipients=emails)
         msg.body = f'''There has been a change:
             {change}
-        If you would like to turn off the notifications then turn it off in your account settings.'''
+        If you would like to turn off the notifications visit your account settings!'''
         send_async_email(app, msg)
     except SyntaxError as e:
         logging.error("Error " + str(e))

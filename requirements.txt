@@ -4,3 +4,4 @@ flask-sqlalchemy
 Flask-Mail
 mysqlclient
 pymysql
+sqlalchemy
