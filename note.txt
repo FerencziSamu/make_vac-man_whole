@@ -1,3 +1,12 @@
-Change urlparse in C:\..\AppData\Roaming\Python\Python37\site-packages flask_oauth.
- -(from urllib.parse import urlparse)
- -(NameError: name 'urljoin' is not defined -> urlparse)
+Open up the browser and go to: http://127.0.0.1:5000/
+Log in with your g-mail account. The first user is going to be admin.
+If you use the application for the first time, you will see that your account is not approved.
+Your registration needs to be approved by an administrator.
+Once you have been given the necessary accesses, you will see a calendar on
+your home page. If you have the right level of accesses, you will be able to create new requests via
+clicking on the calendar. Once it is submitted, it needs to be approved by an administrator.
+You can also choose if you would like to get email notifications regarding any changes to your request at the
+account tab. You can see your remaining holidays too here. You can report bugs/errors via clicking the
+'help' tab and select 'report bug'. You can find information about the app on the same 'help' tab by
+clicking on the 'About' item. You can log out from the application via clicking on the 'Log out' tab.
+Thank you for using the Vacation Manager app!
