@@ -377,7 +377,7 @@ def create_end_date(end_date_split):
     return datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
 
 @asynchronous
-def send_async_email(app, msg):
+def send_async_email(msg):
     with app.app_context():
         try:
             mail.send(msg)
@@ -403,6 +403,6 @@ def send_email(change, email=None):
         msg.body = f'''There has been a change:
             {change}
         If you would like to turn off the notifications visit your account settings!'''
-        send_async_email(app, msg)
+        send_async_email(msg)
     except SyntaxError as e:
         logging.error("Error " + str(e))
