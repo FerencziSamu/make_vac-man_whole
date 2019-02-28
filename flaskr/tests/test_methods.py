@@ -82,12 +82,13 @@ def test_send_async_email_1():
     routes.send_async_email(msg)
 
 
-# With 2 recipients in db with True notifications
+# With 2 recipients in db. The settings does not matter, check logic! If user in db has been added to recipients, email
+# is about to be sent
 def test_send_async_email_2():
     msg = Message('Vacation Management',
                       sender='noreply@demo.com',
                       recipients=['samuelferenczi@invenshure.com', 'huli.opaltest@gmail.com'])
-    msg.body = "test_email"
+    msg.body = "test_email_Asd_asd"
     routes.send_async_email(msg)
 
 
@@ -144,7 +145,7 @@ async def test_send_async_email_7():
     routes.send_async_email(msg)
 
 
-# With 2 recipients, but only 1 in db (only that one receives the email, warns test_send_async_email_8
+# With 2 recipients, but only 1 in db. Only that one receives the email, warns test_send_async_email_8
 # never awaited, hence turned off
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings("ignore:")
@@ -154,3 +155,21 @@ async def test_send_async_email_8():
                       recipients=['samuelferenczi@invenshure.com', 'samu.ferenczi@gmail.com'])
     msg.body = "test_email"
     routes.send_async_email(msg)
+
+
+def test_get_leavecategory():
+    # With correct mapping
+    q = routes.get_leaveCategory(field={'id': 1})
+    assert q is not None
+    # Without mapping
+    with pytest.raises(TypeError):
+        routes.get_leaveCategory(field=None)
+    # 'LeaveCategory' has no attribute 'asd'
+    q = routes.get_leaveCategory(field={'asd': 1})
+    assert q is None
+    # 'LeaveCategory' has no property 'asd'
+    q = routes.get_leaveCategory(field={'id': 'asd'})
+    assert q is None
+    # With empty mapping
+    q = routes.get_leaveCategory(field={'': ''})
+    assert q is None

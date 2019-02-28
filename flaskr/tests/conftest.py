@@ -1,8 +1,6 @@
 import pytest
-# import os
-# import tempfile
 from flaskr import app as application
-from flaskr import routes
+
 
 
 @pytest.fixture(scope='session')
@@ -17,9 +15,6 @@ def client(app):
     app.app_context()
     with app.test_client() as client:
         yield client
-
-
-
 
 
 # @pytest.fixture
