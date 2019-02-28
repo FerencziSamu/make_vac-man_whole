@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 from flask_mail import Message
-from flaskr import routes, logging, models
+from flaskr import routes, logging
 import pytest, unittest, datetime
 
 
@@ -182,8 +182,8 @@ def add_tester_leaverequest():
                             user_id=(-1), state="approved")
     routes.db.session.add(q)
     routes.db.session.commit()
-    idk = q.id
-    return idk
+    id_of_request = q.id
+    return id_of_request
 
 def remove_tester_leaverequest():
     q = routes.LeaveRequest.query.filter_by(end_date="2018-04-10 00:00:00.000000").first()
@@ -208,3 +208,37 @@ def test_getLeaveRequest():
     assert q is None
     # Removing test LeaveRequest from the db
     remove_tester_leaverequest()
+
+
+# Methods for adding User to the db for testing purposes
+def add_tester_user():
+    q = routes.User(email="test@invenshure.com", user_group="employee", days=20, notification=0, leave_category_id=(-1))
+    routes.db.session.add(q)
+    routes.db.session.commit()
+
+
+def remove_tester_user():
+    q = routes.User.query.filter_by(email="test@invenshure.com").first()
+    routes.db.session.delete(q)
+    routes.db.session.commit()
+
+
+def test_getUserByEmail():
+    # Adding test user to db
+    add_tester_user()
+    # With existing email in db
+    q = routes.getUserByEmail(email="test@invenshure.com")
+    assert q is not None
+    # With None property as email
+    q = routes.getUserByEmail(None)
+    assert q is None
+    # With non existing email (in db)
+    q = routes.getUserByEmail(email="test@gmail.com")
+    assert q is None
+    # With integer as email
+    q = routes.getUserByEmail(email=12345)
+    assert q is None
+    remove_tester_user()
+
+
+# def test_get_days_left():
