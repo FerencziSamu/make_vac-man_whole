@@ -312,8 +312,8 @@ def test_add_to_db():
         fake_category = routes.LeaveCategory(category="test_test_2", max_days=20)
         fake_user = routes.User(email="test_2@invenshure.com", user_group="employee", days=0, notification=0,
                                 leave_category_id=fake_category.id)
-        fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=10),
-                                start_date=datetime.date(year=2018, month=4, day=13),
+        fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                                start_date=datetime.date(year=2018, month=4, day=10),
                                 user_id=(-1), state="approved")
         # # Adding category with null max_days (default 20 so it is added)
         q = routes.LeaveCategory(category="test_test_2", max_days=None)
@@ -332,7 +332,7 @@ def test_add_to_db():
         # Removing test user and test category
         fake_user = routes.User.query.filter_by(email="test_2@invenshure.com").first()
         fake_category = routes.LeaveCategory.query.filter_by(category="test_test_2").first()
-        fake_leaverequest = routes.LeaveRequest.query.filter_by(end_date="2018-04-10 00:00:00.000000").first()
+        fake_leaverequest = routes.LeaveRequest.query.filter_by(end_date="2018-04-13 00:00:00.000000").first()
         db.delete(fake_leaverequest)
         db.delete(fake_category)
         db.delete(fake_user)
@@ -390,3 +390,4 @@ def test_get_current_user(get_fake_user, client):
     assert(get_fake_user().user_group == 'employee')
     resp = client.get('/handle_request')
     assert resp.status_code == 302
+
