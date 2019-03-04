@@ -93,7 +93,7 @@ def account():
 def save_request():
     try:
         email = request.form.get('current_user')
-        current_user = getUserByEmail(email=email)
+        current_user = get_user_by_email(email=email)
         if current_user.user_group == 'viewer' or current_user.user_group == 'unapproved':
             return redirect(url_for('index'))
         start_date_split = request.form.get('start-date').split("/")
@@ -126,7 +126,7 @@ def handle_request():
         accept_request = request.form.get('accept')
         decline_request = request.form.get('decline')
         if accept_request is not None:
-            leave_request = getLeaveRequest(id=accept_request)
+            leave_request = get_leave_request(id=accept_request)
             if leave_request.state != 'pending':
                 days = leave_request.end_date - leave_request.start_date
                 leave_request.user.days += days.days + 1
@@ -137,7 +137,7 @@ def handle_request():
             logging.info("Leave request by " + leave_request.user.email + " id: " + accept_request + ", has been "
             "accepted by " + session['user'])
         else:
-            leave_request = getLeaveRequest(id=decline_request)
+            leave_request = get_leave_request(id=decline_request)
             leave_request.state = 'declined'
             days_back = leave_request.end_date - leave_request.start_date
             leave_request.user.days -= days_back.days + 1
@@ -162,32 +162,32 @@ def handle_acc():
         off = request.form.get('off')
         if on or off is not None:
             if on is not None:
-                user = getUserByEmail(email=on)
+                user = get_user_by_email(email=on)
                 user.notification = False
                 db.session.commit()
                 logging.info("Notification has been set to FALSE by " + session['user'])
             else:
-                user = getUserByEmail(email=off)
+                user = get_user_by_email(email=off)
                 user.notification = True
                 db.session.commit()
                 logging.info("Notification has been set to TRUE by " + session['user'])
             return redirect(url_for('account'))
 
         if delete_email is not None:
-            user = getUserByEmail(email=delete_email)
+            user = get_user_by_email(email=delete_email)
             change = "The registration of " + user.email + " has been declined!"
             delete_from_db(user)
             send_email(change, user_email)
             logging.info(user.email + " has been declined by " + session['user'])
         elif approve_email is not None:
-            user = getUserByEmail(email=approve_email)
+            user = get_user_by_email(email=approve_email)
             user.user_group = 'viewer'
             db.session.commit()
             change = user.email + " has been approved."
             send_email(change, user.email)
             logging.info(user.email + " has been accepted by " + session['user'])
         elif category is not None:
-            user = getUserByEmail(email=user_email)
+            user = get_user_by_email(email=user_email)
             user.leave_category_id = category
             db.session.commit()
             change = user.email + "'s category has been changed."
@@ -195,7 +195,7 @@ def handle_acc():
             cat = LeaveCategory.query.filter_by(id=category).first()
             logging.info(user.email + " 's category has been changed to " + cat.category + " by " + session['user'])
         else:
-            user = getUserByEmail(email=user_email)
+            user = get_user_by_email(email=user_email)
             user.user_group = group
             db.session.commit()
             change = user.email + "'s user group has been changed."
@@ -210,14 +210,14 @@ def handle_cat():
         new = request.form.get('add')
         max_days = request.form.get('max_days')
         if delete is not None:
-            category = get_leaveCategory({'id': delete})
+            category = get_leave_category({'id': delete})
             delete_from_db(category)
             change = category.category + " leave category has been deleted."
             send_email(change)
             logging.info(category.category + " category has been deleted by " + session['user'])
         else:
             cat = LeaveCategory(category=new, max_days=max_days)
-            categories = get_leaveCategory({'category': new})
+            categories = get_leave_category({'category': new})
             if categories is None:
                 add_to_db(cat)
                 change = cat.category + " leave category has been added."
@@ -288,7 +288,7 @@ def authorized():
         raw_data = json.dumps(google.get('userinfo').data)
         data = json.loads(raw_data)
         email = data['email']
-        existing = getUserByEmail(email=email)
+        existing = get_user_by_email(email=email)
         session['user'] = email
         logging.info(session['user'] + " has logged in.")
         if existing is None:
@@ -340,7 +340,7 @@ def get_current_user():
         raw_data = json.dumps(google.get('userinfo').data)
         data = json.loads(raw_data)
         email = data['email']
-        return getUserByEmail(email=email)
+        return get_user_by_email(email=email)
     except KeyError as e:
         logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
@@ -351,19 +351,19 @@ def get_current_user():
 def get_days_left(user):
     return user.leave_category.max_days - user.days
 
-def getUserByEmail(email):
+def get_user_by_email(email):
     try:
         return User.query.filter_by(email=email).first()
     except exc.SQLAlchemyError as e:
         logging.exception("Exception: " + str(e))
 
-def getLeaveRequest(id):
+def get_leave_request(id):
     try:
         return LeaveRequest.query.filter_by(id=id).first()
     except exc.SQLAlchemyError as e:
         logging.exception("Exception: " + str(e))
 
-def get_leaveCategory(field=None):
+def get_leave_category(field=None):
     try:
         return LeaveCategory.query.filter_by(**field).first()
     except exc.SQLAlchemyError as e:
@@ -394,7 +394,7 @@ def send_email(change, email=None):
         for admin in admins:
             emails.append(admin.email)
         if email is not None:
-            user = getUserByEmail(email=email)
+            user = get_user_by_email(email=email)
             if user.user_group != 'administrator' and user.notification:
                 emails.append(user.email)
         msg = Message('Vacation Management',

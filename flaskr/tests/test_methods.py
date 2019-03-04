@@ -1,3 +1,4 @@
+from unittest import mock
 from unittest.mock import Mock
 from flask_mail import Message
 from flaskr import routes, logging
@@ -163,20 +164,21 @@ async def test_send_async_email_8():
 
 def test_get_leavecategory():
     # With correct mapping
-    q = routes.get_leaveCategory(field={'id': 1})
+    q = routes.get_leave_category(field={'id': 1})
     assert isinstance(q, routes.LeaveCategory)
     # Without mapping
     with pytest.raises(TypeError):
-        routes.get_leaveCategory(field=None)
+        routes.get_leave_category(field=None)
     # With empty mapping
-    q = routes.get_leaveCategory(field={'': ''})
+    q = routes.get_leave_category(field={'': ''})
     assert q is None
     # 'LeaveCategory' has no attribute 'asd'
-    q = routes.get_leaveCategory(field={'asd': 1})
+    q = routes.get_leave_category(field={'asd': 1})
     assert q is None
     # 'LeaveCategory' has no property 'asd'
-    q = routes.get_leaveCategory(field={'id': 'asd'})
+    q = routes.get_leave_category(field={'id': 'asd'})
     assert q is None
+
 
 # Methods for adding LeaveRequest to the db for testing purposes
 def add_tester_leaverequest():
@@ -188,28 +190,29 @@ def add_tester_leaverequest():
     id_of_request = q.id
     return id_of_request
 
+
 def remove_tester_leaverequest():
     q = routes.LeaveRequest.query.filter_by(end_date="2018-04-13 00:00:00.000000").first()
     db.delete(q)
     db.commit()
 
 
-def test_getLeaveRequest():
+def test_get_leave_request():
     try:
         # Adding test LeaveRequest and setting it's output value to the variable.
         # (it is the ID of the created LeaveRequest)
         id_of_created_leave_request = add_tester_leaverequest()
         # With correct id
-        q = routes.getLeaveRequest(id=id_of_created_leave_request)
+        q = routes.get_leave_request(id=id_of_created_leave_request)
         assert isinstance(q, routes.LeaveRequest)
         # Without None id
-        q = routes.getLeaveRequest(id=None)
+        q = routes.get_leave_request(id=None)
         assert q is None
         # With string id
-        q = routes.getLeaveRequest(id="asd")
+        q = routes.get_leave_request(id="asd")
         assert q is None
         # Without existing id
-        q = routes.getLeaveRequest(id=99999998)
+        q = routes.get_leave_request(id=99999998)
         assert q is None
     finally:
         # Removing test LeaveRequest from the db
@@ -229,21 +232,21 @@ def remove_tester_user():
     db.commit()
 
 
-def test_getUserByEmail():
+def test_get_user_by_email():
     try:
         # Adding test user to db
         add_tester_user()
         # With existing email in db
-        q = routes.getUserByEmail(email="test_0@invenshure.com")
+        q = routes.get_user_by_email(email="test_0@invenshure.com")
         assert isinstance(q, routes.User)
         # With None property as email
-        q = routes.getUserByEmail(None)
+        q = routes.get_user_by_email(None)
         assert q is None
         # With non existing email (in db)
-        q = routes.getUserByEmail(email="test_0@gmail.com")
+        q = routes.get_user_by_email(email="test_0@gmail.com")
         assert q is None
         # With integer as email
-        q = routes.getUserByEmail(email=12345)
+        q = routes.get_user_by_email(email=12345)
         assert q is None
     finally:
         # Remove test user from db
@@ -302,6 +305,7 @@ def test_get_days_left():
         db.delete(fake_category)
         db.commit()
 
+
 def test_add_to_db():
     try:
         # Adding test user, category, leave request
@@ -334,17 +338,32 @@ def test_add_to_db():
         db.delete(fake_user)
         db.commit()
 
+
 def test_delete_from_db():
     # Adding test user, category, leave request
     fake_category = routes.LeaveCategory(category="test_test_3", max_days=20)
     fake_user = routes.User(email="test_3@invenshure.com", user_group="employee", days=0, notification=0,
                             leave_category_id=fake_category.id)
-    fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=10),
-                            start_date=datetime.date(year=2018, month=4, day=13),
+    fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                            start_date=datetime.date(year=2018, month=4, day=10),
                             user_id=(-1), state="approved")
-    routes.add_to_db(fake_category)
-    routes.add_to_db(fake_leaverequest)
-    routes.add_to_db(fake_user)
+    db.add(fake_category)
+    db.add(fake_leaverequest)
+    db.add(fake_user)
+    db.commit()
     routes.delete_from_db(fake_category)
     routes.delete_from_db(fake_leaverequest)
     routes.delete_from_db(fake_user)
+
+
+@mock.patch('flaskr.routes.get_current_user')
+def test_get_current_user(get_fake_user, client):
+    fake_user = routes.User()
+    fake_user.user_group = 'administrator'
+    fake_user.email = 'test_admin@invenshure.com'
+
+    get_fake_user.return_value = fake_user
+    assert(get_fake_user().user_group == 'administrator')
+    resp = client.get('/admin')
+    assert resp.status_code == 200
+

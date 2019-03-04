@@ -16,4 +16,3 @@ def test_home_3(client):
 def test_home_4(client):
     resp = client.get('/')
     assert b"Login" in resp.data
-
