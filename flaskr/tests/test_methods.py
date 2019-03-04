@@ -261,11 +261,18 @@ def test_get_days_left():
         db.add(fake_user)
         db.commit()
         # With proper user
-        p = routes.get_days_left(fake_user)
-        assert p == 20
+        q = routes.get_days_left(fake_user)
+        assert q == 20
         # With created leave request for 6 days
         url = "http://127.0.0.1:5000/save_request"
         data = {"current_user": "test@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        requests.post(url, data)
+        db.commit()
+        q = routes.get_days_left(fake_user)
+        assert q == 14
+        # With created leave request for 16 days ( more than we have ) Does not get created.
+        url = "http://127.0.0.1:5000/save_request"
+        data = {"current_user": "test@invenshure.com", "start-date": "03/20/2019", "end-date": "04/05/2019"}
         requests.post(url, data)
         db.commit()
         q = routes.get_days_left(fake_user)
@@ -286,12 +293,10 @@ def test_get_days_left():
         with pytest.raises(AttributeError):
             routes.get_days_left(fake_category)
     finally:
-        pass
         # Removing test user and test category
         fake_user = routes.User.query.filter_by(email="test@invenshure.com").first()
         fake_category = routes.LeaveCategory.query.filter_by(category="test_test_1").first()
         fake_request = routes.LeaveRequest.query.filter_by(user_id=fake_user.id).first()
-        logging.info(str(fake_user.days) + "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         db.delete(fake_request)
         db.delete(fake_user)
         db.delete(fake_category)
