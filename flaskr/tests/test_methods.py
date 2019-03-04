@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 from flask_mail import Message
 from flaskr import routes, logging
-import pytest, unittest, datetime
+import pytest, unittest, datetime, requests
 
 # Global variable for db calling
 db = routes.db.session
@@ -180,8 +180,8 @@ def test_get_leavecategory():
 
 # Methods for adding LeaveRequest to the db for testing purposes
 def add_tester_leaverequest():
-    q = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=10),
-                            start_date=datetime.date(year=2018, month=4, day=13),
+    q = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                            start_date=datetime.date(year=2018, month=4, day=10),
                             user_id=(-1), state="approved")
     db.add(q)
     db.commit()
@@ -189,7 +189,7 @@ def add_tester_leaverequest():
     return id_of_request
 
 def remove_tester_leaverequest():
-    q = routes.LeaveRequest.query.filter_by(end_date="2018-04-10 00:00:00.000000").first()
+    q = routes.LeaveRequest.query.filter_by(end_date="2018-04-13 00:00:00.000000").first()
     db.delete(q)
     db.commit()
 
@@ -218,13 +218,13 @@ def test_getLeaveRequest():
 
 # Methods for adding User to the db for testing purposes
 def add_tester_user():
-    q = routes.User(email="test@invenshure.com", user_group="employee", days=0, notification=0, leave_category_id=(-1))
+    q = routes.User(email="test_0@invenshure.com", user_group="employee", days=0, notification=0, leave_category_id=(-1))
     db.add(q)
     db.commit()
 
 
 def remove_tester_user():
-    q = routes.User.query.filter_by(email="test@invenshure.com").first()
+    q = routes.User.query.filter_by(email="test_0@invenshure.com").first()
     db.delete(q)
     db.commit()
 
@@ -234,13 +234,13 @@ def test_getUserByEmail():
         # Adding test user to db
         add_tester_user()
         # With existing email in db
-        q = routes.getUserByEmail(email="test@invenshure.com")
+        q = routes.getUserByEmail(email="test_0@invenshure.com")
         assert isinstance(q, routes.User)
         # With None property as email
         q = routes.getUserByEmail(None)
         assert q is None
         # With non existing email (in db)
-        q = routes.getUserByEmail(email="test@gmail.com")
+        q = routes.getUserByEmail(email="test_0@gmail.com")
         assert q is None
         # With integer as email
         q = routes.getUserByEmail(email=12345)
@@ -253,7 +253,7 @@ def test_getUserByEmail():
 def test_get_days_left():
     try:
         # Adding test user and category
-        fake_category = routes.LeaveCategory(category="test_test", max_days=20)
+        fake_category = routes.LeaveCategory(category="test_test_1", max_days=20)
         db.add(fake_category)
         db.commit()
         fake_user = routes.User(email="test@invenshure.com", user_group="employee", days=0, notification=0,
@@ -261,8 +261,15 @@ def test_get_days_left():
         db.add(fake_user)
         db.commit()
         # With proper user
+        p = routes.get_days_left(fake_user)
+        assert p == 20
+        # With 25 taken days out from 20
+        url = "http://127.0.0.1:5000/save_request"
+        data = {"current_user": "test@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        requests.post(url, data)
         q = routes.get_days_left(fake_user)
         assert q == 20
+
         # With random email from db
         with pytest.raises(AttributeError):
             routes.get_days_left("test@invenshure.com")
@@ -281,7 +288,9 @@ def test_get_days_left():
     finally:
         # Removing test user and test category
         fake_user = routes.User.query.filter_by(email="test@invenshure.com").first()
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test").first()
+        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_1").first()
+        fake_request = routes.LeaveRequest.query.filter_by(user_id=fake_user.id).first()
+        db.delete(fake_request)
         db.delete(fake_user)
         db.delete(fake_category)
         db.commit()
@@ -289,14 +298,14 @@ def test_get_days_left():
 def test_add_to_db():
     try:
         # Adding test user, category, leave request
-        fake_category = routes.LeaveCategory(category="test_test", max_days=20)
-        fake_user = routes.User(email="test@invenshure.com", user_group="employee", days=0, notification=0,
+        fake_category = routes.LeaveCategory(category="test_test_2", max_days=20)
+        fake_user = routes.User(email="test_2@invenshure.com", user_group="employee", days=0, notification=0,
                                 leave_category_id=fake_category.id)
         fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=10),
                                 start_date=datetime.date(year=2018, month=4, day=13),
                                 user_id=(-1), state="approved")
-        # Adding category with null max_days (default 20 so it is added)
-        q = routes.LeaveCategory(category="test_test_1", max_days=None)
+        # # Adding category with null max_days (default 20 so it is added)
+        q = routes.LeaveCategory(category="test_test_2", max_days=None)
         routes.add_to_db(q)
         db.delete(q)
         db.commit()
@@ -304,27 +313,31 @@ def test_add_to_db():
         q = routes.LeaveCategory(category="", max_days=30)
         routes.add_to_db(q)
         db.delete(q)
-        db.commit()
-        # Adding with None as name
-        # try:
-        #     q = routes.LeaveCategory(category=None, max_days=30)
-        #     routes.add_to_db(q)
-        # except Exception as e:
-        #     logging.info(str(e))
-        #     assert False
-        #
-        # db.delete(q)
-        # db.commit()
         # Adding proper objects
         routes.add_to_db(fake_category)
         routes.add_to_db(fake_leaverequest)
         routes.add_to_db(fake_user)
     finally:
         # Removing test user and test category
-        fake_user = routes.User.query.filter_by(email="test@invenshure.com").first()
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test").first()
+        fake_user = routes.User.query.filter_by(email="test_2@invenshure.com").first()
+        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_2").first()
         fake_leaverequest = routes.LeaveRequest.query.filter_by(end_date="2018-04-10 00:00:00.000000").first()
         db.delete(fake_leaverequest)
         db.delete(fake_category)
         db.delete(fake_user)
         db.commit()
+
+def test_delete_from_db():
+    # Adding test user, category, leave request
+    fake_category = routes.LeaveCategory(category="test_test_3", max_days=20)
+    fake_user = routes.User(email="test_3@invenshure.com", user_group="employee", days=0, notification=0,
+                            leave_category_id=fake_category.id)
+    fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=10),
+                            start_date=datetime.date(year=2018, month=4, day=13),
+                            user_id=(-1), state="approved")
+    routes.add_to_db(fake_category)
+    routes.add_to_db(fake_leaverequest)
+    routes.add_to_db(fake_user)
+    routes.delete_from_db(fake_category)
+    routes.delete_from_db(fake_leaverequest)
+    routes.delete_from_db(fake_user)
