@@ -361,9 +361,32 @@ def test_get_current_user(get_fake_user, client):
     fake_user = routes.User()
     fake_user.user_group = 'administrator'
     fake_user.email = 'test_admin@invenshure.com'
-
+    fake_user_2 = routes.User()
+    fake_user_2.user_group = 'viewer'
+    fake_user_2.email = 'test_viewer@invenshure.com'
+    fake_user_3 = routes.User()
+    fake_user_3.user_group = 'unapproved'
+    fake_user_3.email = 'test_unapproved@invenshure.com'
+    fake_user_4 = routes.User()
+    fake_user_4.user_group = 'employee'
+    fake_user_4.email = 'employee@invenshure.com'
+    # Admin test
     get_fake_user.return_value = fake_user
     assert(get_fake_user().user_group == 'administrator')
     resp = client.get('/admin')
     assert resp.status_code == 200
-
+    # Viewer test
+    get_fake_user.return_value = fake_user_2
+    assert(get_fake_user().user_group == 'viewer')
+    resp = client.get('/requests')
+    assert resp.status_code == 302
+    # Unapproved test
+    get_fake_user.return_value = fake_user_3
+    assert(get_fake_user().user_group == 'unapproved')
+    resp = client.get('/save_request')
+    assert resp.status_code == 302
+    # Employee test
+    get_fake_user.return_value = fake_user_4
+    assert(get_fake_user().user_group == 'employee')
+    resp = client.get('/handle_request')
+    assert resp.status_code == 302
