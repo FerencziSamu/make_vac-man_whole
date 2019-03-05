@@ -112,7 +112,10 @@ def save_request():
             add_to_db(leave_request)
             change = current_user.email + " created a leave request."
             send_email(change)
-            logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
+            try:
+                logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
+            except KeyError as e:
+                logging.error("Error " + str(e))
             return redirect(url_for('index'))
         flash("You only have " + str(get_days_left(current_user)) + " days left!")
         return redirect(url_for('index'))

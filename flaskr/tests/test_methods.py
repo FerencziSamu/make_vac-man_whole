@@ -406,18 +406,18 @@ def test_get_current_user(get_fake_user, client):
 #     assert resp.status_code == 302
 
 
-# How can I test
-@mock.patch('flaskr.routes.create_default_cat')
-def test_create_default_cat():
-    # With one category in the db
-    try:
-        fake_category = routes.LeaveCategory(category="test_test_4", max_days=20)
-        db.add(fake_category)
-        db.commit()
-        routes.create_default_cat()
-        q = routes.LeaveCategory.query.all()
-        assert q is not None
-    finally:
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_4").first()
-        db.delete(fake_category)
-        db.commit()
+# # How can I test
+# @mock.patch('flaskr.routes.create_default_cat')
+# def test_create_default_cat():
+#     # With one category in the db
+#     try:
+#         fake_category = routes.LeaveCategory(category="test_test_4", max_days=20)
+#         db.add(fake_category)
+#         db.commit()
+#         routes.create_default_cat()
+#         q = routes.LeaveCategory.query.all()
+#         assert q is not None
+#     finally:
+#         fake_category = routes.LeaveCategory.query.filter_by(category="test_test_4").first()
+#         db.delete(fake_category)
+#         db.commit()
