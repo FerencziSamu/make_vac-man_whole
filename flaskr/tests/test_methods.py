@@ -11,9 +11,7 @@ routes.db.session.query(routes.User).delete()
 routes.db.session.query(routes.LeaveRequest).delete()
 routes.db.session.query(routes.LeaveCategory).delete()
 routes.db.session.commit()
-# routes.User.query().delete()
-# routes.LeaveCategory.query().delete()
-# routes.LeaveRequest.query().delete()
+
 # Global variable for db calling
 
 db = routes.db.session
@@ -424,24 +422,31 @@ def test_get_current_user(get_fake_user, client):
 #     assert resp.status_code == 302
 
 
-# How can I test
-@mock.patch('flaskr.routes.create_default_cat')
-def test_create_default_cat(client):
+def test_create_default_cat():
     # With one category in the db
     try:
-        fake_category = routes.LeaveCategory(category="test_test_4", max_days=20)
-        db.add(fake_category)
-        db.commit()
+        # With empty db
+        categories = routes.LeaveCategory.query.all()
+        for cat in categories:
+            assert cat is None
         routes.create_default_cat()
-        q = routes.LeaveCategory.query.all()
-        assert q is not None
-    finally:
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_4").first()
-        db.delete(fake_category)
+        categories_2 = routes.LeaveCategory.query.all()
+        assert len(categories_2) == 2
+        # Checking if the 2 categories were created
+        for cat in categories_2:
+            assert isinstance(cat, routes.LeaveCategory)
+        cat1 = routes.LeaveCategory.query.filter_by(category="Young").first()
+        assert cat1.max_days == 20
+        cat2 = routes.LeaveCategory.query.filter_by(max_days=30).first()
+        assert cat2.category == "Old"
+        # remove 1 category
+        cat2 = routes.LeaveCategory.query.filter_by(max_days=30).first()
+        db.delete(cat2)
         db.commit()
-
-def test_empty_db(client):
-    """Start with a blank database."""
-
-    rv = client.get('/')
-    assert b'No entries here so far' not in rv.data
+        # Calling the method again, expecting only 1 category
+        routes.create_default_cat()
+        categories_3 = routes.LeaveCategory.query.all()
+        assert len(categories_3) == 1
+    finally:
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
