@@ -28,6 +28,7 @@ from flaskr import app as application, logging
 def client():
     app = application
     db_fd, app.config['DATABASE'] = tempfile.mkstemp()
+    app.config['SECRET_KEY'] = 'sekrit!'
     app.config['TESTING'] = True
     client = app.test_client()
 
@@ -39,3 +40,20 @@ def client():
     os.close(db_fd)
     os.unlink(app.config['DATABASE'])
 
+
+# @pytest.fixture(scope='session')
+# def client_for_sessions():
+#     app = application
+#     db_fd, app.config['DATABASE_2'] = tempfile.mkstemp()
+#     app.config['TESTING'] = True
+#
+#     client = app.test_client()
+#
+#     with app.test_request_context():
+#         session['user'] = "test_session_user"
+#         init_db()
+#
+#     yield client
+#
+#     os.close(db_fd)
+#     os.unlink(app.config['DATABASE_2'])

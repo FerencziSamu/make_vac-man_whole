@@ -427,6 +427,7 @@ def test_create_default_cat():
     try:
         # With empty db
         categories = routes.LeaveCategory.query.all()
+        assert len(categories) == 0
         for cat in categories:
             assert cat is None
         routes.create_default_cat()
