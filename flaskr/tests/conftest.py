@@ -1,8 +1,9 @@
 import os
 import tempfile
 import pytest
-from flaskr import app as application, logging
+
 from flaskr.db import init_db
+from flaskr import app as application, logging
 
 
 # @pytest.fixture(scope='session')
@@ -27,8 +28,6 @@ from flaskr.db import init_db
 def client():
     app = application
     db_fd, app.config['DATABASE'] = tempfile.mkstemp()
-    logging.info(str(app.config['DATABASE']))
-    logging.info(str(db_fd))
     app.config['TESTING'] = True
     client = app.test_client()
 
@@ -37,5 +36,6 @@ def client():
 
     yield client
 
-    # os.close(db_fd)
-    # os.unlink(app.config['DATABASE'])
+    os.close(db_fd)
+    os.unlink(app.config['DATABASE'])
+

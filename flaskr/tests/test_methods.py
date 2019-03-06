@@ -4,9 +4,19 @@ from flask_mail import Message
 from flaskr import routes, logging
 import pytest, unittest, datetime, requests
 
-# Global variable for db calling
-db = routes.db.session
 
+
+# Deleting all data from db before testing
+routes.db.session.query(routes.User).delete()
+routes.db.session.query(routes.LeaveRequest).delete()
+routes.db.session.query(routes.LeaveCategory).delete()
+routes.db.session.commit()
+# routes.User.query().delete()
+# routes.LeaveCategory.query().delete()
+# routes.LeaveRequest.query().delete()
+# Global variable for db calling
+
+db = routes.db.session
 
 def login(client, username, password):
     return client.post('/login/authorized', data=dict(
@@ -163,21 +173,29 @@ async def test_send_async_email_8():
 
 
 def test_get_leavecategory():
-    # With correct mapping
-    q = routes.get_leave_category(field={'id': 1})
-    assert isinstance(q, routes.LeaveCategory)
-    # Without mapping
-    with pytest.raises(TypeError):
-        routes.get_leave_category(field=None)
-    # With empty mapping
-    q = routes.get_leave_category(field={'': ''})
-    assert q is None
-    # 'LeaveCategory' has no attribute 'asd'
-    q = routes.get_leave_category(field={'asd': 1})
-    assert q is None
-    # 'LeaveCategory' has no property 'asd'
-    q = routes.get_leave_category(field={'id': 'asd'})
-    assert q is None
+    try:
+        fake_category = routes.LeaveCategory(category="test_test_0", max_days=20)
+        db.add(fake_category)
+        db.commit()
+        # With correct mapping
+        q = routes.get_leave_category(field={'id': fake_category.id})
+        assert isinstance(q, routes.LeaveCategory)
+        # Without mapping
+        with pytest.raises(TypeError):
+            routes.get_leave_category(field=None)
+        # With empty mapping
+        q = routes.get_leave_category(field={'': ''})
+        assert q is None
+        # 'LeaveCategory' has no attribute 'asd'
+        q = routes.get_leave_category(field={'asd': 1})
+        assert q is None
+        # 'LeaveCategory' has no property 'asd'
+        q = routes.get_leave_category(field={'id': 'asd'})
+        assert q is None
+    finally:
+        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_0").first()
+        db.delete(fake_category)
+        db.commit()
 
 
 # Methods for adding LeaveRequest to the db for testing purposes
