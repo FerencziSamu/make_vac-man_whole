@@ -1,24 +1,14 @@
 from flaskr import app
 
 
+# Checks the response from the index page
 def test_home_1(client):
     resp = client.get('/')
     assert resp.status_code == 200
-
-
-def test_home_2(client):
-    resp = client.get('/')
+    assert b"Welcome! Please log in!" in resp.data
     assert resp.content_type == "text/html; charset=utf-8"
-
-
-def test_home_3(client):
-    resp = client.get('/')
     assert b"Logout" not in resp.data
 
-
-def test_home_4(client):
-    resp = client.get('/')
-    assert b"Login" in resp.data
 
 # AssertionError: Popped wrong request context.
 # def test_logout_1():
@@ -30,6 +20,14 @@ def test_home_4(client):
 #                 resp = c.get('/logout', follow_redirects=False)
 #                 assert b"Welcome! Please log in!" in resp.data
 #                 assert resp.status_code == 200
+
+
+# Once called, sends random user name and password to the authorized page
+def login(client, username, password):
+    return client.post('/login/authorized', data=dict(
+        username=username,
+        password=password
+    ), follow_redirects=True)
 
 
 # Logout redirected us  to the main page
@@ -44,12 +42,14 @@ def test_logout_1():
         assert resp.status_code == 200
 
 
+# Checks if we click on "login" it starts to redirect us
 def test_login_1(client):
     resp = client.get('/login', follow_redirects=False)
     assert b"redirect" in resp.data
 
 
-def test_login_redirect(client):
+# Checks the redirection from login page to the Google authorization site
+def test_login_2(client):
     from flask import url_for
     app.config['SERVER_NAME'] = "{rv}.localdomain"
     with app.app_context():
@@ -58,20 +58,8 @@ def test_login_redirect(client):
         assert b"https://accounts.google.com" in response.data
 
 
-def login(client, username, password):
-    return client.post('/login/authorized', data=dict(
-        username=username,
-        password=password
-    ), follow_redirects=True)
-
-
-def logout(client):
-    return client.get('/logout', follow_redirects=True)
-
-
-def test_login_logout(client):
+# Checks if we can force a login from outside of authorization
+def test_login_3(client):
     rv = login(client, "Username", "Password")
     assert b'The method is not allowed for the requested URL.' in rv.data
 
-    rv = logout(client)
-    assert rv.status_code == 200
