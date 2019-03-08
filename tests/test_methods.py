@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from flask_mail import Message
 from flaskr import routes, logging
 import pytest, unittest, datetime, requests
+from flaskr import app
 
 
 # Deleting all data from db before testing
@@ -432,3 +433,19 @@ def test_create_default_cat():
     finally:
         db.query(routes.LeaveCategory).delete()
         db.commit()
+
+
+# Checks if we are trying to visit /report endpoint without being logged in
+def test_report(client):
+    resp = client.get('/report')
+    assert b"Redirecting" in resp.data
+
+
+# Checks if we are trying to visit /report endpoint with being logged in
+def test_report_2():
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = "test_session_user"
+        resp = c.get('/report', follow_redirects=True)
+        assert resp.status_code == 200
+        assert b"what were you doing when the error occurred" in resp.data

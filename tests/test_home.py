@@ -30,18 +30,6 @@ def login(client, username, password):
     ), follow_redirects=True)
 
 
-# Logout redirected us  to the main page
-'''<class 'werkzeug.local.LocalProxy'> instead of session_transaction() object,
-read more:http://flask.pocoo.org/docs/1.0/testing/'''
-def test_logout_1():
-    with app.test_client() as c:
-        with c.session_transaction() as sess:
-            sess["user"] = "test_session_user"
-        resp = c.get('/logout', follow_redirects=True)
-        assert b"Welcome! Please log in!" in resp.data
-        assert resp.status_code == 200
-
-
 # Checks if we click on "login" it starts to redirect us
 def test_login_1(client):
     resp = client.get('/login', follow_redirects=False)
@@ -62,4 +50,16 @@ def test_login_2(client):
 def test_login_3(client):
     rv = login(client, "Username", "Password")
     assert b'The method is not allowed for the requested URL.' in rv.data
+
+
+# Logout redirected us  to the main page
+'''<class 'werkzeug.local.LocalProxy'> instead of session_transaction() object,
+read more:http://flask.pocoo.org/docs/1.0/testing/'''
+def test_logout_1():
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = "test_session_user"
+        resp = c.get('/logout', follow_redirects=True)
+        assert b"Welcome! Please log in!" in resp.data
+        assert resp.status_code == 200
 
