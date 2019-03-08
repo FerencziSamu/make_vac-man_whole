@@ -1,9 +1,9 @@
 from unittest import mock
 from unittest.mock import Mock
 from flask_mail import Message
-from flaskr import routes, logging
+from flaskr import routes, app,  logging
 import pytest, unittest, datetime, requests
-from flaskr import app
+from flask import request
 
 
 # Deleting all data from db before testing
@@ -83,7 +83,7 @@ def test_send_async_email_2():
     msg = Message('Vacation Management',
                   sender='noreply@demo.com',
                   recipients=['samuelferenczi@invenshure.com', 'huli.opaltest@gmail.com'])
-    msg.body = "test_email_Asd_asd"
+    msg.body = "test_email"
     routes.send_async_email(msg)
 
 
@@ -449,3 +449,29 @@ def test_report_2():
         resp = c.get('/report', follow_redirects=True)
         assert resp.status_code == 200
         assert b"what were you doing when the error occurred" in resp.data
+
+
+# Checks if we are trying to submit a report without being logged in
+def test_report_3(client):
+    resp = client.post('/report', follow_redirects=False)
+    assert b"/login" in resp.data
+    assert b"redirect" in resp.data
+
+
+# def test_report_4(client):
+#     with client.session_transaction() as sess:
+#         sess["user"] = "test_session_user"
+#         data = {"report": "value_test_report"}
+#         resp = client.post('/report', data, follow_redirects=True)
+#         assert resp.status_code == 302
+
+
+# def test_report_3():
+#     with app.test_client() as c:
+#         with app.test_request_context():
+#             response = "This is a test case!"
+#             request.form.['report'] = response
+#             resp = c.post('/report', report=response)
+#             # param = request.form.to_dict()
+#         assert resp.status_code == 200
+#         assert b"Report has been sent! You may close this window now!" in resp.data

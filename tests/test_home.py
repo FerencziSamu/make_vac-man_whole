@@ -52,7 +52,7 @@ def test_login_3(client):
     assert b'The method is not allowed for the requested URL.' in rv.data
 
 
-# Logout redirected us  to the main page
+# Logout redirected us to the main page
 '''<class 'werkzeug.local.LocalProxy'> instead of session_transaction() object,
 read more:http://flask.pocoo.org/docs/1.0/testing/'''
 def test_logout_1():
