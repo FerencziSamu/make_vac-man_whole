@@ -5,7 +5,6 @@ from flaskr import routes, logging
 import pytest, unittest, datetime, requests
 
 
-
 # Deleting all data from db before testing
 routes.db.session.query(routes.User).delete()
 routes.db.session.query(routes.LeaveRequest).delete()
@@ -15,24 +14,6 @@ routes.db.session.commit()
 # Global variable for db calling
 
 db = routes.db.session
-
-def login(client, username, password):
-    return client.post('/login/authorized', data=dict(
-        username=username,
-        password=password
-    ), follow_redirects=True)
-
-
-def logout(client):
-    return client.get('/logout', follow_redirects=True)
-
-
-def test_login_logout(client):
-    rv = login(client, "Username", "Password")
-    assert b'The method is not allowed for the requested URL.' in rv.data
-
-    rv = logout(client)
-    assert rv.status_code == 200
 
 
 def test_create_end_date():
