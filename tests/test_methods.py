@@ -521,7 +521,6 @@ def test_handle_cat_4():
         q = routes.LeaveCategory.query.all()
         assert len(q) == 2
     finally:
-
         db.query(routes.LeaveCategory).delete()
         db.commit()
 
@@ -532,6 +531,178 @@ def test_handle_acc_1(client):
     assert b"Redirecting..." in resp.data
 
 
-
+# Checks if new user can be accepted
 def test_handle_acc_2():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"approve": "test_elek@invenshure.com"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "viewer"
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
 
+
+# Checks if new user can be denied
+def test_handle_acc_3():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"delete": "test_elek@invenshure.com"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user is None
+    finally:
+        pass
+
+
+# Checks if user_group can be modified to employee
+def test_handle_acc_4():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "employee"
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
+# Checks if user_group can be modified to administrator
+def test_handle_acc_5():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "administrator"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "administrator"
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
+# Checks if user_group can be modified from administrator to unapproved
+def test_handle_acc_6():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "administrator"}
+        requests.post(url, data)
+        url_2 = "http://127.0.0.1:5000/handle_acc"
+        data_2 = {"user": "test_elek@invenshure.com", "group": "unapproved"}
+        requests.post(url_2, data_2)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "unapproved"
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
+# Checks if leave_category is None as default
+def test_handle_acc_7():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.leave_category_id is None
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
+# Checks if leave_category is can be set
+def test_handle_acc_8():
+    try:
+        routes.create_default_cat()
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        data_2 = {"user": "test_elek@invenshure.com", "category": 1}
+        requests.post(url, data_2)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.leave_category_id == 1
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.query(routes.LeaveCategory).delete()
+        db.delete(user)
+        db.commit()
+
+
+# Checks if leave_category is can be changed
+def test_handle_acc_9():
+    try:
+        routes.create_default_cat()
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        data_2 = {"user": "test_elek@invenshure.com", "category": 1}
+        requests.post(url, data_2)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.leave_category_id == 1
+        url_2 = "http://127.0.0.1:5000/handle_acc"
+        data_3 = {"user": "test_elek@invenshure.com", "category": 2}
+        requests.post(url_2, data_3)
+        db.commit()
+        assert user.leave_category_id == 2
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
+
+
+# Checks if notification is set and can be changed
+def test_handle_acc_10():
+    try:
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.notification is True
+        url_2 = "http://127.0.0.1:5000/handle_acc"
+        data_2 = {"on": "test_elek@invenshure.com"}
+        requests.post(url_2, data_2)
+        db.commit()
+        assert user.notification is False
+        url_3 = "http://127.0.0.1:5000/handle_acc"
+        data_3 = {"off": "test_elek@invenshure.com"}
+        requests.post(url_3, data_3)
+        db.commit()
+        assert user.notification is True
+    finally:
+        pass
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
