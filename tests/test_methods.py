@@ -531,6 +531,22 @@ def test_handle_acc_1(client):
     assert b"Redirecting..." in resp.data
 
 
+# Try
+def test_handle_acc_try(client):
+    try:
+        user = routes.User(email="test_elek@invenshure.com")
+        # db.add(routes.User(email="test_elek@invenshure.com"))
+        db.add(user)
+        db.commit()
+        data = {"approve": "test_elek@invenshure.com"}
+        client.post("/handle_acc", data=data)
+        assert user.user_group == "viewer"
+    finally:
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
 # Checks if new user can be accepted
 def test_handle_acc_2():
     try:
@@ -542,7 +558,6 @@ def test_handle_acc_2():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "viewer"
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
@@ -573,7 +588,6 @@ def test_handle_acc_4():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "employee"
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
@@ -590,7 +604,6 @@ def test_handle_acc_5():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "administrator"
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
@@ -610,7 +623,6 @@ def test_handle_acc_6():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "unapproved"
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
@@ -627,7 +639,6 @@ def test_handle_acc_7():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id is None
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
@@ -647,7 +658,6 @@ def test_handle_acc_8():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 1
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.query(routes.LeaveCategory).delete()
         db.delete(user)
@@ -673,7 +683,6 @@ def test_handle_acc_9():
         db.commit()
         assert user.leave_category_id == 2
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.query(routes.LeaveCategory).delete()
@@ -701,8 +710,34 @@ def test_handle_acc_10():
         db.commit()
         assert user.notification is True
     finally:
-        pass
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.query(routes.LeaveCategory).delete()
         db.commit()
+
+
+# Checks if user's leave_category sets None after assigned category gets deleted
+def test_handle_acc_11():
+    try:
+        routes.create_default_cat()
+        db.add(routes.User(email="test_elek@invenshure.com"))
+        db.commit()
+        url = "http://127.0.0.1:5000/handle_acc"
+        data = {"user": "test_elek@invenshure.com", "group": "employee"}
+        requests.post(url, data)
+        db.commit()
+        data_2 = {"user": "test_elek@invenshure.com", "category": 2}
+        requests.post(url, data_2)
+        db.commit()
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.leave_category_id == 2
+        q = routes.LeaveCategory.query.filter_by(id=2).first()
+        db.delete(q)
+        db.commit()
+        assert user.leave_category_id is None
+    finally:
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
+

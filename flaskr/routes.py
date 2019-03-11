@@ -188,7 +188,7 @@ def handle_acc():
             db.session.commit()
             change = user.email + " has been approved."
             send_email(change, user.email)
-            logging.info(user.email + " has been accepted by " + session['user'])
+            # logging.info(user.email + " has been accepted by " + session['user'])
         elif category is not None:
             user = get_user_by_email(email=user_email)
             user.leave_category_id = category

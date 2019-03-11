@@ -62,4 +62,3 @@ def test_logout_1():
         resp = c.get('/logout', follow_redirects=True)
         assert b"Welcome! Please log in!" in resp.data
         assert resp.status_code == 200
-
