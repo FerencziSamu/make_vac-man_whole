@@ -4,6 +4,7 @@ from flask_mail import Message
 from flaskr import routes, app,  logging
 import pytest, unittest, datetime, requests
 from flask import request
+from flask import session
 
 
 # Deleting all data from db before testing
@@ -545,6 +546,38 @@ def test_handle_acc_try(client):
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
         db.commit()
+
+
+# Try 2
+def test_handle_acc_try_2(client):
+    try:
+        user = routes.User(email="test_elek@invenshure.com")
+        # db.add(routes.User(email="test_elek@invenshure.com"))
+        db.add(user)
+        db.commit()
+        data = {"approve": "test_elek@invenshure.com"}
+        with client.session_transaction():
+            client.post("/handle_acc", data=data)
+            session['user'] = "test_elek@invenshure.com"
+        assert user.user_group == "viewer"
+    finally:
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        db.delete(user)
+        db.commit()
+
+
+def test_session():
+    user = routes.User(email="test_elek@invenshure.com")
+    db.add(user)
+    db.commit()
+    data = {"approve": "test_elek@invenshure.com"}
+    with app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess['user'] = 'test_elek@invenshure.com'
+        resp = client.post('/handle_acc', data=data)
+        assert resp.status_code == 302
+    q = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+    assert q.user_group == "viewer"
 
 
 # Checks if new user can be accepted
