@@ -456,6 +456,18 @@ def test_report_3(client):
     assert b"redirect" in resp.data
 
 
+def test_report_4():
+    try:
+        data = {"report": "Hi! This is the report test body!"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/report', data=data)
+            assert resp.status_code == 200
+    finally:
+        pass
+
+
 # Checks if we are redirected after a get request
 def test_handle_cat_1(client):
     resp = client.get('/handle_cat', follow_redirects=False)
