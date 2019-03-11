@@ -465,7 +465,7 @@ def test_report_3(client):
 #         resp = client.post('/report', data, follow_redirects=True)
 #         assert resp.status_code == 302
 
-
+# Trying to create a report with a post request
 # def test_report_3():
 #     with app.test_client() as c:
 #         with app.test_request_context():
@@ -475,3 +475,63 @@ def test_report_3(client):
 #             # param = request.form.to_dict()
 #         assert resp.status_code == 200
 #         assert b"Report has been sent! You may close this window now!" in resp.data
+
+# Checks if we are redirected after a get request
+def test_handle_cat_1(client):
+    resp = client.get('/handle_cat', follow_redirects=False)
+    assert b"Redirecting..." in resp.data
+
+
+# Checks if we can delete leave category
+def test_handle_cat_2():
+    try:
+        routes.create_default_cat()
+        url = "http://127.0.0.1:5000/handle_cat"
+        data = {"current_user": "test@invenshure.com", "delete": 1}
+        requests.post(url, data)
+        q = routes.LeaveCategory.query.all()
+        assert len(q) == 1
+    finally:
+        pass
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
+
+
+# Checks if we can create new leave category
+def test_handle_cat_3():
+    try:
+        routes.create_default_cat()
+        url = "http://127.0.0.1:5000/handle_cat"
+        data = {"current_user": "test@invenshure.com", "add": "Test_cat", "max_days": 20}
+        requests.post(url, data)
+        q = routes.LeaveCategory.query.all()
+        assert len(q) == 3
+    finally:
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
+
+
+# Checks if we can create leave category with the same name
+def test_handle_cat_4():
+    try:
+        routes.create_default_cat()
+        url = "http://127.0.0.1:5000/handle_cat"
+        data = {"current_user": "test@invenshure.com", "add": "Young", "max_days": 20}
+        requests.post(url, data)
+        q = routes.LeaveCategory.query.all()
+        assert len(q) == 2
+    finally:
+
+        db.query(routes.LeaveCategory).delete()
+        db.commit()
+
+
+# Checks if we are redirected after a get request
+def test_handle_acc_1(client):
+    resp = client.get('/handle_acc', follow_redirects=False)
+    assert b"Redirecting..." in resp.data
+
+
+
+def test_handle_acc_2():
+
