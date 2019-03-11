@@ -1,10 +1,7 @@
 from unittest import mock
-from unittest.mock import Mock
 from flask_mail import Message
 from flaskr import routes, app,  logging
-import pytest, unittest, datetime, requests
-
-
+import pytest, datetime, requests
 
 
 # Deleting all data from db before testing
@@ -459,24 +456,6 @@ def test_report_3(client):
     assert b"redirect" in resp.data
 
 
-# def test_report_4(client):
-#     with client.session_transaction() as sess:
-#         sess["user"] = "test_session_user"
-#         data = {"report": "value_test_report"}
-#         resp = client.post('/report', data, follow_redirects=True)
-#         assert resp.status_code == 302
-
-# Trying to create a report with a post request
-# def test_report_3():
-#     with app.test_client() as c:
-#         with app.test_request_context():
-#             response = "This is a test case!"
-#             request.form.['report'] = response
-#             resp = c.post('/report', report=response)
-#             # param = request.form.to_dict()
-#         assert resp.status_code == 200
-#         assert b"Report has been sent! You may close this window now!" in resp.data
-
 # Checks if we are redirected after a get request
 def test_handle_cat_1(client):
     resp = client.get('/handle_cat', follow_redirects=False)
@@ -487,13 +466,15 @@ def test_handle_cat_1(client):
 def test_handle_cat_2():
     try:
         routes.create_default_cat()
-        url = "http://127.0.0.1:5000/handle_cat"
         data = {"current_user": "test@invenshure.com", "delete": 1}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_cat', data=data)
+            assert resp.status_code == 302
         q = routes.LeaveCategory.query.all()
         assert len(q) == 1
     finally:
-        pass
         db.query(routes.LeaveCategory).delete()
         db.commit()
 
@@ -502,9 +483,12 @@ def test_handle_cat_2():
 def test_handle_cat_3():
     try:
         routes.create_default_cat()
-        url = "http://127.0.0.1:5000/handle_cat"
-        data = {"current_user": "test@invenshure.com", "add": "Test_cat", "max_days": 20}
-        requests.post(url, data)
+        data = {"current_user": "test@invenshure.com", "add": "Test_Category", "max_days": 20}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_cat', data=data)
+            assert resp.status_code == 302
         q = routes.LeaveCategory.query.all()
         assert len(q) == 3
     finally:
@@ -516,9 +500,12 @@ def test_handle_cat_3():
 def test_handle_cat_4():
     try:
         routes.create_default_cat()
-        url = "http://127.0.0.1:5000/handle_cat"
         data = {"current_user": "test@invenshure.com", "add": "Young", "max_days": 20}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_cat', data=data)
+            assert resp.status_code == 302
         q = routes.LeaveCategory.query.all()
         assert len(q) == 2
     finally:
