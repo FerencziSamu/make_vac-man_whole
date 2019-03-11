@@ -3,8 +3,8 @@ from unittest.mock import Mock
 from flask_mail import Message
 from flaskr import routes, app,  logging
 import pytest, unittest, datetime, requests
-from flask import request
-from flask import session
+
+
 
 
 # Deleting all data from db before testing
@@ -532,64 +532,20 @@ def test_handle_acc_1(client):
     assert b"Redirecting..." in resp.data
 
 
-# Try
-def test_handle_acc_try(client):
-    try:
-        user = routes.User(email="test_elek@invenshure.com")
-        # db.add(routes.User(email="test_elek@invenshure.com"))
-        db.add(user)
-        db.commit()
-        data = {"approve": "test_elek@invenshure.com"}
-        client.post("/handle_acc", data=data)
-        assert user.user_group == "viewer"
-    finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
-
-
-# Try 2
-def test_handle_acc_try_2(client):
-    try:
-        user = routes.User(email="test_elek@invenshure.com")
-        # db.add(routes.User(email="test_elek@invenshure.com"))
-        db.add(user)
-        db.commit()
-        data = {"approve": "test_elek@invenshure.com"}
-        with client.session_transaction():
-            client.post("/handle_acc", data=data)
-            session['user'] = "test_elek@invenshure.com"
-        assert user.user_group == "viewer"
-    finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
-
-
-def test_session():
-    user = routes.User(email="test_elek@invenshure.com")
-    db.add(user)
-    db.commit()
-    data = {"approve": "test_elek@invenshure.com"}
-    with app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess['user'] = 'test_elek@invenshure.com'
-        resp = client.post('/handle_acc', data=data)
-        assert resp.status_code == 302
-    q = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-    assert q.user_group == "viewer"
-
-
 # Checks if new user can be accepted
 def test_handle_acc_2():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"approve": "test_elek@invenshure.com"}
-        requests.post(url, data)
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        assert user.user_group == "viewer"
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        q = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert q.user_group == "viewer"
     finally:
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         db.delete(user)
@@ -599,13 +555,17 @@ def test_handle_acc_2():
 # Checks if new user can be denied
 def test_handle_acc_3():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"delete": "test_elek@invenshure.com"}
-        requests.post(url, data)
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        assert user is None
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        q = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert q is None
     finally:
         pass
 
@@ -613,11 +573,15 @@ def test_handle_acc_3():
 # Checks if user_group can be modified to employee
 def test_handle_acc_4():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "employee"
     finally:
@@ -629,11 +593,15 @@ def test_handle_acc_4():
 # Checks if user_group can be modified to administrator
 def test_handle_acc_5():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "administrator"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "administrator"
     finally:
@@ -645,14 +613,24 @@ def test_handle_acc_5():
 # Checks if user_group can be modified from administrator to unapproved
 def test_handle_acc_6():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "administrator"}
-        requests.post(url, data)
-        url_2 = "http://127.0.0.1:5000/handle_acc"
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "administrator"
+        db.commit()
         data_2 = {"user": "test_elek@invenshure.com", "group": "unapproved"}
-        requests.post(url_2, data_2)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "unapproved"
     finally:
@@ -664,11 +642,15 @@ def test_handle_acc_6():
 # Checks if leave_category is None as default
 def test_handle_acc_7():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
-        data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        data = {"user": "test_elek@invenshure.com", "group": "administrator"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id is None
     finally:
@@ -677,17 +659,26 @@ def test_handle_acc_7():
         db.commit()
 
 
-# Checks if leave_category is can be set
+# Checks if leave_category can be set
 def test_handle_acc_8():
     try:
         routes.create_default_cat()
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        db.commit()
         data_2 = {"user": "test_elek@invenshure.com", "category": 1}
-        requests.post(url, data_2)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 1
     finally:
@@ -701,46 +692,69 @@ def test_handle_acc_8():
 def test_handle_acc_9():
     try:
         routes.create_default_cat()
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        db.commit()
         data_2 = {"user": "test_elek@invenshure.com", "category": 1}
-        requests.post(url, data_2)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 1
-        url_2 = "http://127.0.0.1:5000/handle_acc"
-        data_3 = {"user": "test_elek@invenshure.com", "category": 2}
-        requests.post(url_2, data_3)
         db.commit()
+        data_3 = {"user": "test_elek@invenshure.com", "category": 2}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_3)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 2
     finally:
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
         db.query(routes.LeaveCategory).delete()
+        db.delete(user)
         db.commit()
 
 
 # Checks if notification is set and can be changed
 def test_handle_acc_10():
     try:
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.notification is True
-        url_2 = "http://127.0.0.1:5000/handle_acc"
         data_2 = {"on": "test_elek@invenshure.com"}
-        requests.post(url_2, data_2)
-        db.commit()
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.notification is False
-        url_3 = "http://127.0.0.1:5000/handle_acc"
         data_3 = {"off": "test_elek@invenshure.com"}
-        requests.post(url_3, data_3)
-        db.commit()
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_3)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.notification is True
     finally:
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
@@ -753,15 +767,22 @@ def test_handle_acc_10():
 def test_handle_acc_11():
     try:
         routes.create_default_cat()
-        db.add(routes.User(email="test_elek@invenshure.com"))
+        user = routes.User(email="test_elek@invenshure.com")
+        db.add(user)
         db.commit()
-        url = "http://127.0.0.1:5000/handle_acc"
         data = {"user": "test_elek@invenshure.com", "group": "employee"}
-        requests.post(url, data)
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
         db.commit()
         data_2 = {"user": "test_elek@invenshure.com", "category": 2}
-        requests.post(url, data_2)
-        db.commit()
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 2
         q = routes.LeaveCategory.query.filter_by(id=2).first()
