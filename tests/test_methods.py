@@ -4,6 +4,7 @@ from flaskr import routes, app, logging
 import pytest, datetime
 
 
+
 # Deleting all data from db before testing
 routes.db.session.query(routes.User).delete()
 routes.db.session.query(routes.LeaveRequest).delete()
@@ -978,7 +979,7 @@ def test_save_request_5():
         delete_everything_from_db()
 
 
-# Trying to create request with invalid input
+# Trying to create requests with invalid inputs
 def test_save_request_6():
     try:
         # Adding test user and category
@@ -1003,5 +1004,28 @@ def test_save_request_6():
         l_requests = routes.LeaveRequest.query.all()
         assert len(l_requests) == 0
 
+    finally:
+        delete_everything_from_db()
+
+
+# Sending post request to account endpoint
+def test_account_1(client):
+    rv = client.post('/account')
+    assert b"Method Not Allowed" in rv.data
+
+
+def test_account_2():
+    try:
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                routes.google.get('userinfo').data = "test_elek@invenshure.com"
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.get('/account')
+            assert resp.status_code == 302
+        assert b"User Group" in resp.data
     finally:
         delete_everything_from_db()
