@@ -1,6 +1,6 @@
 from unittest import mock
 from flask_mail import Message
-from flaskr import routes, app,  logging
+from flaskr import routes, app, logging
 import pytest, datetime, requests
 
 
@@ -13,6 +13,14 @@ routes.db.session.commit()
 # Global variable for db calling
 
 db = routes.db.session
+
+
+# Method to delete everything from DB
+def delete_everything_from_db():
+    db.query(routes.LeaveCategory).delete()
+    db.query(routes.LeaveRequest).delete()
+    db.query(routes.User).delete()
+    db.commit()
 
 
 def test_create_end_date():
@@ -217,7 +225,8 @@ def test_get_leave_request():
 
 # Methods for adding User to the db for testing purposes
 def add_tester_user():
-    q = routes.User(email="test_0@invenshure.com", user_group="employee", days=0, notification=0, leave_category_id=(-1))
+    q = routes.User(email="test_0@invenshure.com", user_group="employee", days=0, notification=0,
+                    leave_category_id=(-1))
     db.add(q)
     db.commit()
 
@@ -255,27 +264,39 @@ def test_get_days_left():
         fake_category = routes.LeaveCategory(category="test_test_1", max_days=20)
         db.add(fake_category)
         db.commit()
-        fake_user = routes.User(email="test@invenshure.com", user_group="employee", days=0, notification=0,
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="employee", days=0, notification=0,
                                 leave_category_id=fake_category.id)
         db.add(fake_user)
         db.commit()
         # With proper user
         q = routes.get_days_left(fake_user)
         assert q == 20
+
         # With created leave request for 6 days
-        url = "http://127.0.0.1:5000/save_request"
-        data = {"current_user": "test@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
-        requests.post(url, data)
-        db.commit()
-        q = routes.get_days_left(fake_user)
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+        fake_user_2 = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        q = routes.get_days_left(fake_user_2)
         assert q == 14
+
         # With created leave request for 16 days ( more than we have ) Does not get created.
-        url = "http://127.0.0.1:5000/save_request"
-        data = {"current_user": "test@invenshure.com", "start-date": "03/20/2019", "end-date": "04/05/2019"}
-        requests.post(url, data)
-        db.commit()
-        q = routes.get_days_left(fake_user)
+        data_2 = {"current_user": "test_elek@invenshure.com", "start-date": "03/20/2019", "end-date": "04/05/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data_2)
+            assert resp.status_code == 302
+        fake_user_3 = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        # Checks if there is more than 1 leave request
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 1
+        q = routes.get_days_left(fake_user_3)
         assert q == 14
+
         # With random email from db
         with pytest.raises(AttributeError):
             routes.get_days_left("test@invenshure.com")
@@ -293,13 +314,7 @@ def test_get_days_left():
             routes.get_days_left(fake_category)
     finally:
         # Removing test user and test category
-        fake_user = routes.User.query.filter_by(email="test@invenshure.com").first()
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_1").first()
-        fake_request = routes.LeaveRequest.query.filter_by(user_id=fake_user.id).first()
-        db.delete(fake_request)
-        db.delete(fake_user)
-        db.delete(fake_category)
-        db.commit()
+        delete_everything_from_db()
 
 
 def test_add_to_db():
@@ -309,8 +324,8 @@ def test_add_to_db():
         fake_user = routes.User(email="test_2@invenshure.com", user_group="employee", days=0, notification=0,
                                 leave_category_id=fake_category.id)
         fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
-                                start_date=datetime.date(year=2018, month=4, day=10),
-                                user_id=(-1), state="approved")
+                                                start_date=datetime.date(year=2018, month=4, day=10),
+                                                user_id=(-1), state="approved")
         # # Adding category with null max_days (default 20 so it is added)
         q = routes.LeaveCategory(category="test_test_2", max_days=None)
         routes.add_to_db(q)
@@ -326,13 +341,7 @@ def test_add_to_db():
         routes.add_to_db(fake_user)
     finally:
         # Removing test user and test category
-        fake_user = routes.User.query.filter_by(email="test_2@invenshure.com").first()
-        fake_category = routes.LeaveCategory.query.filter_by(category="test_test_2").first()
-        fake_leaverequest = routes.LeaveRequest.query.filter_by(end_date="2018-04-13 00:00:00.000000").first()
-        db.delete(fake_leaverequest)
-        db.delete(fake_category)
-        db.delete(fake_user)
-        db.commit()
+        delete_everything_from_db()
 
 
 def test_delete_from_db():
@@ -341,8 +350,8 @@ def test_delete_from_db():
     fake_user = routes.User(email="test_3@invenshure.com", user_group="employee", days=0, notification=0,
                             leave_category_id=fake_category.id)
     fake_leaverequest = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
-                            start_date=datetime.date(year=2018, month=4, day=10),
-                            user_id=(-1), state="approved")
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=(-1), state="approved")
     db.add(fake_category)
     db.add(fake_leaverequest)
     db.add(fake_user)
@@ -368,24 +377,25 @@ def test_get_current_user(get_fake_user, client):
     fake_user_4.email = 'employee@invenshure.com'
     # Admin test
     get_fake_user.return_value = fake_user
-    assert(get_fake_user().user_group == 'administrator')
+    assert (get_fake_user().user_group == 'administrator')
     resp = client.get('/admin')
     assert resp.status_code == 200
     # Viewer test
     get_fake_user.return_value = fake_user_2
-    assert(get_fake_user().user_group == 'viewer')
+    assert (get_fake_user().user_group == 'viewer')
     resp = client.get('/requests')
     assert resp.status_code == 302
     # Unapproved test
     get_fake_user.return_value = fake_user_3
-    assert(get_fake_user().user_group == 'unapproved')
+    assert (get_fake_user().user_group == 'unapproved')
     resp = client.get('/save_request')
     assert resp.status_code == 302
     # Employee test
     get_fake_user.return_value = fake_user_4
-    assert(get_fake_user().user_group == 'employee')
+    assert (get_fake_user().user_group == 'employee')
     resp = client.get('/handle_request')
     assert resp.status_code == 302
+
 
 # Will return to it
 # @mock.patch('flaskr.routes.authorized')
@@ -456,6 +466,7 @@ def test_report_3(client):
     assert b"redirect" in resp.data
 
 
+# Checks if the report is created after the submit with the given message.
 def test_report_4():
     try:
         data = {"report": "Hi! This is the report test body!"}
@@ -546,9 +557,7 @@ def test_handle_acc_2():
         q = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert q.user_group == "viewer"
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if new user can be denied
@@ -584,9 +593,7 @@ def test_handle_acc_4():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "employee"
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if user_group can be modified to administrator
@@ -604,9 +611,7 @@ def test_handle_acc_5():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "administrator"
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if user_group can be modified from administrator to unapproved
@@ -633,9 +638,7 @@ def test_handle_acc_6():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.user_group == "unapproved"
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if leave_category is None as default
@@ -653,9 +656,7 @@ def test_handle_acc_7():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id is None
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if leave_category can be set
@@ -681,10 +682,7 @@ def test_handle_acc_8():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 1
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.query(routes.LeaveCategory).delete()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if leave_category is can be changed
@@ -719,10 +717,7 @@ def test_handle_acc_9():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.leave_category_id == 2
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.query(routes.LeaveCategory).delete()
-        db.delete(user)
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if notification is set and can be changed
@@ -756,10 +751,7 @@ def test_handle_acc_10():
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
         assert user.notification is True
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.query(routes.LeaveCategory).delete()
-        db.commit()
+        delete_everything_from_db()
 
 
 # Checks if user's leave_category sets None after assigned category gets deleted
@@ -789,8 +781,88 @@ def test_handle_acc_11():
         db.commit()
         assert user.leave_category_id is None
     finally:
-        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        db.delete(user)
-        db.query(routes.LeaveCategory).delete()
-        db.commit()
+        delete_everything_from_db()
 
+
+# Checks if we are redirected after a get request
+def test_handle_request_1(client):
+    resp = client.get('/handle_request', follow_redirects=False)
+    assert b"Redirecting..." in resp.data
+
+
+# Checks if the request changes status from pending to approved
+def test_handle_request_2():
+    try:
+        routes.create_default_cat()
+        user = routes.User(email="test_elek@invenshure.com", user_group="employee", leave_category_id=1)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+        db.add(user)
+        db.add(leave_request)
+        db.commit()
+        data = {"site": "requests", "accept": 1}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_request', data=data)
+            assert resp.status_code == 302
+        l_request = routes.LeaveRequest.query.filter_by(user_id=1).first()
+        assert l_request.state == "accepted"
+    finally:
+        delete_everything_from_db()
+
+
+# Checks if the request changes status from pending to declined
+def test_handle_request_3():
+    try:
+        routes.create_default_cat()
+        user = routes.User(email="test_elek@invenshure.com", user_group="employee", leave_category_id=1)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+        db.add(user)
+        db.add(leave_request)
+        db.commit()
+        data = {"site": "requests", "decline": 1}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_request', data=data)
+            assert resp.status_code == 302
+        l_request = routes.LeaveRequest.query.filter_by(user_id=1).first()
+        assert l_request.state == "declined"
+    finally:
+        delete_everything_from_db()
+
+
+# Checks if the request changes status from pending to declined and than to approved
+def test_handle_request_4():
+    try:
+        routes.create_default_cat()
+        user = routes.User(email="test_elek@invenshure.com", user_group="employee", leave_category_id=1)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=13),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+        db.add(user)
+        db.add(leave_request)
+        db.commit()
+        data = {"site": "requests", "decline": 1}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_request', data=data)
+            assert resp.status_code == 302
+        l_request = routes.LeaveRequest.query.filter_by(user_id=1).first()
+        assert l_request.state == "declined"
+        db.commit()
+        data = {"site": "requests", "accept": 1}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_request', data=data)
+            assert resp.status_code == 302
+        l_request = routes.LeaveRequest.query.filter_by(user_id=1).first()
+        assert l_request.state == "accepted"
+    finally:
+        delete_everything_from_db()
