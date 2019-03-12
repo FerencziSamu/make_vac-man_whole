@@ -1,7 +1,7 @@
 from unittest import mock
 from flask_mail import Message
 from flaskr import routes, app, logging
-import pytest, datetime, requests
+import pytest, datetime
 
 
 # Deleting all data from db before testing
@@ -395,21 +395,6 @@ def test_get_current_user(get_fake_user, client):
     assert (get_fake_user().user_group == 'employee')
     resp = client.get('/handle_request')
     assert resp.status_code == 302
-
-
-# Will return to it
-# @mock.patch('flaskr.routes.authorized')
-# def test_authorized(get_fake_google_response, client):
-#     fake_google_response = {
-#     # 'access_token': '',
-#     # 'expires_in': 3600,
-#     # 'scope': 'https://www.googleapis.com/auth/userinfo.email openid',
-#     # 'token_type': 'Bearer',
-#     # 'id_token': ''
-#     }
-#     get_fake_google_response.return_value = fake_google_response
-#     resp = client.get('/login')
-#     assert resp.status_code == 302
 
 
 def test_create_default_cat():
@@ -866,3 +851,51 @@ def test_handle_request_4():
         assert l_request.state == "accepted"
     finally:
         delete_everything_from_db()
+
+
+# Creating a request with an employee for 6 days
+def test_save_request_1():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="employee", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        # With created leave request for 6 days
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+        l_req = routes.LeaveRequest.query.filter_by(end_date="2019-03-19 00:00:00.000000").first()
+        assert l_req.state == "pending"
+    finally:
+        delete_everything_from_db()
+
+
+# Creating a request with an administrator for 6 days and checks if the status is accepted automatically
+def test_save_request_2():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        # With created leave request for 6 days
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+        l_req = routes.LeaveRequest.query.filter_by(end_date="2019-03-19 00:00:00.000000").first()
+        assert l_req.state == "accepted"
+    finally:
+        delete_everything_from_db()
+
+
