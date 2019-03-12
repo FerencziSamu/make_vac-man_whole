@@ -899,3 +899,109 @@ def test_save_request_2():
         delete_everything_from_db()
 
 
+# Trying to create a request with administrator for more days than we have
+def test_save_request_3():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        # With created leave request for 6 days
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        data_2 = {"current_user": "test_elek@invenshure.com", "start-date": "04/01/2019", "end-date": "04/25/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+            resp = client.post('/save_request', data=data_2)
+            assert resp.status_code == 302
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 1
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.days == 6
+    finally:
+        delete_everything_from_db()
+
+
+# Trying to create a request with employee for more days than we have
+def test_save_request_4():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="employee", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        # With created leave request for 6 days
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/19/2019"}
+        data_2 = {"current_user": "test_elek@invenshure.com", "start-date": "04/01/2019", "end-date": "04/25/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+            resp = client.post('/save_request', data=data_2)
+            assert resp.status_code == 302
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 1
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.days == 6
+    finally:
+        delete_everything_from_db()
+
+
+# Trying to create request with bigger start date than end date // Fails until i don't fix this bug
+def test_save_request_5():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        # With created leave request for -1 days
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/13/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 0
+    finally:
+        delete_everything_from_db()
+
+
+# Trying to create request with invalid input
+def test_save_request_6():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "xx/x/"}
+        data_2 = {"current_user": "test_elek@invenshure.com", "start-date": "xx/xx/20xx19", "end-date": "xx/x/"}
+        data_3 = {"current_user": "test_elek@invenshure.com", "start-date": "//", "end-date": "//"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data)
+            assert resp.status_code == 302
+            resp = client.post('/save_request', data=data_2)
+            assert resp.status_code == 302
+            resp = client.post('/save_request', data=data_3)
+            assert resp.status_code == 302
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 0
+
+    finally:
+        delete_everything_from_db()

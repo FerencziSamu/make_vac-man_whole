@@ -122,6 +122,9 @@ def save_request():
     except AttributeError as e:
         logging.error("Error " + str(e))
         return redirect(url_for('index'))
+    except ValueError as e:
+        logging.error("Error " + str(e))
+        return redirect(url_for('index'))
 
 @app.route('/handle_request', methods=["POST", "GET"])
 def handle_request():
