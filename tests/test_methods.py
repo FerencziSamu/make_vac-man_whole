@@ -2,8 +2,8 @@ from unittest import mock
 from flask_mail import Message
 from flaskr import routes, app, logging
 import pytest, datetime
-
-
+import json
+from unittest.mock import patch, MagicMock
 
 # Deleting all data from db before testing
 routes.db.session.query(routes.User).delete()
@@ -1003,7 +1003,6 @@ def test_save_request_6():
             assert resp.status_code == 302
         l_requests = routes.LeaveRequest.query.all()
         assert len(l_requests) == 0
-
     finally:
         delete_everything_from_db()
 
@@ -1014,18 +1013,34 @@ def test_account_1(client):
     assert b"Method Not Allowed" in rv.data
 
 
-def test_account_2():
+
+
+def test_account_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
     try:
-        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0, notification=0,
+        routes.create_default_cat()
+        fake_user = routes.User(email="samuelferenczi@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
                                 leave_category_id=1)
         db.add(fake_user)
         db.commit()
+
+        json_data = {
+            "id": "101480267571304637814",
+            "email": "samuelferenczi@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+            }
+
         with app.test_client() as client:
-            with client.session_transaction() as sess:
-                routes.google.get('userinfo').data = "test_elek@invenshure.com"
-                sess['user'] = 'test_elek@invenshure.com'
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
             resp = client.get('/account')
-            assert resp.status_code == 302
-        assert b"User Group" in resp.data
+            assert resp.status_code == 200
+            assert b"Group" in resp.data
+            logging.info(str(resp.data))
     finally:
         delete_everything_from_db()
