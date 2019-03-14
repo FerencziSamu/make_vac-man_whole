@@ -1100,7 +1100,7 @@ def test_save_request_5():
             resp = client.post('/save_request', data=data)
             assert resp.status_code == 302
         l_requests = routes.LeaveRequest.query.all()
-        assert len(l_requests) == 1
+        assert len(l_requests) == 0
     finally:
         delete_everything_from_db()
 

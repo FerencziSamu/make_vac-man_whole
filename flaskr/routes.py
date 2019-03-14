@@ -101,7 +101,7 @@ def save_request():
         start_date = create_start_date(start_date_split)
         end_date = create_end_date(end_date_split)
         days = (end_date - start_date).days
-        if days + 1 <= get_days_left(current_user):
+        if days + 1 <= get_days_left(current_user) and days > 0:
             leave_request = LeaveRequest(start_date=start_date,
                                          end_date=end_date,
                                          state='pending',
