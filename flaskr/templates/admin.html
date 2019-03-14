@@ -126,8 +126,8 @@
     {% endfor %}
       <form action = "/handle_cat" method = "POST">
         <tr>
-          <td><input class="form-control" placeholder="New category" type="text" name="add"></td>
-          <td><input class="form-control" placeholder="Days" type="number" min="1" step="1" name="max_days"></td>
+          <td><input pattern=".{3,}" required class="form-control" placeholder="New category" type="text" name="add"></td>
+          <td><input pattern=".{1,2}" required class="form-control" placeholder="Days" type="number" min="1" step="1" name="max_days"></td>
           <td><input class="btn btn-default" type="submit" value="Add"></td>
         </tr>
       </form>

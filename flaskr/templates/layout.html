@@ -133,7 +133,7 @@ background-color: #ddd;
                 <div class="dropdown-content">
                   <a href="#popup1">About</a>
                   <a href="#">FAQ</a>
-                  {% if current_user.user_group != 'unapproved' %}
+                  {% if current_user.user_group != 'unapproved' or current_user.user_group != 'viewer' %}
                   <a href="javascript:window.open('report', 'ErrorReport', 'width=800,height=850');">Error reporting</a>
                   {% endif %}
                 </div>
