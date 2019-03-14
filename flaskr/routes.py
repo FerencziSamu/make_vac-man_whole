@@ -236,23 +236,26 @@ def handle_cat():
 def report():
     try:
         if 'user' in session:
-            if request.method == 'GET':
-                return render_template('report.html')
-            else:
-                report_value = request.form['report']
-                ts = time.time()
-                report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                user = session.get('user')
-                f = open("flaskr/reports/" + report_time, "a+")
-                f.write(user + " " + report_time + " " + report_value + "\n")
-                f.close()
-                email = [app.config.get('USER_EMAIL')]
-                msg = Message('Vacation Management Error Report',
-                              sender='noreply@demo.com',
-                              recipients=email)
-                msg.body = f'''New report: {user} {report_time} {report_value}'''
-                send_async_email(app, msg)
-                return render_template('report.html', success=True)
+            current_user = get_current_user()
+            if current_user.user_group == 'administrator' or current_user.user_group == 'employee':
+                if request.method == 'GET':
+                    return render_template('report.html')
+                else:
+                    report_value = request.form['report']
+                    ts = time.time()
+                    report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                    user = session.get('user')
+                    f = open("flaskr/reports/" + report_time, "a+")
+                    f.write(user + " " + report_time + " " + report_value + "\n")
+                    f.close()
+                    email = [app.config.get('USER_EMAIL')]
+                    msg = Message('Vacation Management Error Report',
+                                  sender='noreply@demo.com',
+                                  recipients=email)
+                    msg.body = f'''New report: {user} {report_time} {report_value}'''
+                    send_async_email(app, msg)
+                    return render_template('report.html', success=True)
+            return redirect(url_for('index'))
         return redirect(url_for('login'))
     except OAuthException as e:
         logging.exception("Exception " + str(e))

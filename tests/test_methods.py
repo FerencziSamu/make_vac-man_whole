@@ -521,13 +521,35 @@ def test_report(client):
 
 
 # Checks if we are trying to visit /report endpoint with being logged in
-def test_report_2():
-    with app.test_client() as c:
-        with c.session_transaction() as sess:
-            sess["user"] = "test_session_user"
-        resp = c.get('/report', follow_redirects=True)
-        assert resp.status_code == 200
-        assert b"what were you doing when the error occurred" in resp.data
+def test_report_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess["user"] = "test_session_user"
+                mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = c.get('/report', follow_redirects=True)
+            assert resp.status_code == 200
+            assert b"what were you doing when the error occurred" in resp.data
+    finally:
+        delete_everything_from_db()
 
 
 # Checks if we are trying to submit a report without being logged in
@@ -538,16 +560,35 @@ def test_report_3(client):
 
 
 # Checks if the report is created after the submit with the given message.
-def test_report_4():
+def test_report_4(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
     try:
-        data = {"report": "Hi! This is the report test body!"}
-        with app.test_client() as client:
-            with client.session_transaction() as sess:
-                sess['user'] = 'test_elek@invenshure.com'
-            resp = client.post('/report', data=data)
-            assert resp.status_code == 200
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess["user"] = "test_session_user"
+                mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            data = {"report": "Hi! This is the report test body!"}
+            resp = c.post('/report', data=data)
+        assert resp.status_code == 200
     finally:
-        pass
+        delete_everything_from_db()
 
 
 # Checks if we are redirected after a get request
