@@ -2,8 +2,7 @@ from unittest import mock
 from flask_mail import Message
 from flaskr import routes, app, logging
 import pytest, datetime
-import json
-from unittest.mock import patch, MagicMock
+
 
 # Deleting all data from db before testing
 routes.db.session.query(routes.User).delete()
@@ -22,6 +21,92 @@ def delete_everything_from_db():
     db.query(routes.LeaveRequest).delete()
     db.query(routes.User).delete()
     db.commit()
+
+
+# Checks the response from the index page
+def test_home_1(client):
+    resp = client.get('/')
+    assert resp.status_code == 200
+    assert b"Welcome! Please log in!" in resp.data
+    assert resp.content_type == "text/html; charset=utf-8"
+    assert b"Logout" not in resp.data
+
+
+# Checks if the user is in the session and it is an administrator
+def test_home_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.get('/')
+            assert resp.status_code == 200
+            assert b"Home" in resp.data
+            assert b"Admin" in resp.data
+            assert b"Leave Requests" in resp.data
+    finally:
+        delete_everything_from_db()
+
+
+# Once called, sends random user name and password to the authorized page
+def login(client, username, password):
+    return client.post('/login/authorized', data=dict(
+        username=username,
+        password=password
+    ), follow_redirects=True)
+
+
+# Checks if we click on "login" it starts to redirect us
+def test_login_1(client):
+    resp = client.get('/login', follow_redirects=False)
+    assert b"redirect" in resp.data
+
+
+# Checks the redirection from login page to the Google authorization site
+def test_login_2(client):
+    from flask import url_for
+    app.config['SERVER_NAME'] = "{rv}.localdomain"
+    with app.app_context():
+        response = client.get(url_for('login'), follow_redirects=False)
+        # check if the path changed
+        assert b"https://accounts.google.com" in response.data
+
+
+# Checks if we can force a login from outside of authorization
+def test_login_3(client):
+    rv = login(client, "Username", "Password")
+    assert b'The method is not allowed for the requested URL.' in rv.data
+
+
+# Logout redirected us to the main page
+'''<class 'werkzeug.local.LocalProxy'> instead of session_transaction() object,
+read more:http://flask.pocoo.org/docs/1.0/testing/'''
+def test_logout_1():
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = "test_session_user"
+        resp = c.get('/logout', follow_redirects=True)
+        assert b"Welcome! Please log in!" in resp.data
+        assert resp.status_code == 200
 
 
 def test_create_end_date():
@@ -1033,7 +1118,7 @@ def test_account_2(mocker):
             "verified_email": "True",
             "picture": "aaaaaaaaaa.jpeg",
             "hd": "invenshure.com"
-            }
+        }
 
         with app.test_client() as client:
             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
@@ -1066,7 +1151,7 @@ def test_account_3(mocker):
             "verified_email": "True",
             "picture": "aaaaaaaaaa.jpeg",
             "hd": "invenshure.com"
-            }
+        }
 
         with app.test_client() as client:
             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
@@ -1104,7 +1189,7 @@ def test_requests_1(mocker):
             "verified_email": "True",
             "picture": "aaaaaaaaaa.jpeg",
             "hd": "invenshure.com"
-            }
+        }
 
         with app.test_client() as client:
             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
@@ -1147,7 +1232,7 @@ def test_requests_2(mocker):
             "verified_email": "True",
             "picture": "aaaaaaaaaa.jpeg",
             "hd": "invenshure.com"
-            }
+        }
 
         with app.test_client() as client:
             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
@@ -1162,5 +1247,95 @@ def test_requests_2(mocker):
         delete_everything_from_db()
 
 
+# Checks if /admin endpoint gives back the expected values for administrator user
+def test_admin_1(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
 
-def test_admin_1():
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elni_jo@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        fake_user_2 = routes.User(email="test_elek@invenshure.com", user_group="unapproved", days=0,
+                                  notification=0,
+                                  leave_category_id=None)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=11),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+
+        db.add(fake_user)
+        db.add(fake_user_2)
+        db.add(leave_request)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = client.get('/admin')
+            assert resp.status_code == 200
+            assert b"Approve" in resp.data
+            assert b"Decline" in resp.data
+            assert b"test_elek@invenshure.com" in resp.data
+            assert b"test_elni_jo@invenshure.com" in resp.data
+            assert b"Pending Accounts" in resp.data
+            assert b"2018-04-11"
+            assert b"Leave Category"
+            assert b"User Group"
+            assert b"New category"
+            assert b"Add"
+    finally:
+        delete_everything_from_db()
+
+
+# Checks if /admin endpoint redirects for a non administrator user
+def test_admin_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elni_jo@invenshure.com", user_group="employee", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        fake_user_2 = routes.User(email="test_elek@invenshure.com", user_group="unapproved", days=0,
+                                  notification=0,
+                                  leave_category_id=None)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=11),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+
+        db.add(fake_user)
+        db.add(fake_user_2)
+        db.add(leave_request)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = client.get('/admin', follow_redirects=False)
+            assert resp.status_code == 302
+            assert b"Redirecting..." in resp.data
+            assert b"Leave Category" not in resp.data
+            assert b"User Group" not in resp.data
+            assert b"New category" not in resp.data
+    finally:
+        delete_everything_from_db()
+
+
