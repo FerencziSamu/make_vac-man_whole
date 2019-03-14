@@ -974,7 +974,7 @@ def test_save_request_5():
             resp = client.post('/save_request', data=data)
             assert resp.status_code == 302
         l_requests = routes.LeaveRequest.query.all()
-        assert len(l_requests) == 0
+        assert len(l_requests) == 1
     finally:
         delete_everything_from_db()
 
@@ -1013,8 +1013,7 @@ def test_account_1(client):
     assert b"Method Not Allowed" in rv.data
 
 
-
-
+# Sending get request, expecting proper values
 def test_account_2(mocker):
     class MockedUserInfo:
         def __init__(self, userinfo):
@@ -1022,15 +1021,15 @@ def test_account_2(mocker):
 
     try:
         routes.create_default_cat()
-        fake_user = routes.User(email="samuelferenczi@invenshure.com", user_group="administrator", days=0,
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
                                 notification=0,
                                 leave_category_id=1)
         db.add(fake_user)
         db.commit()
 
         json_data = {
-            "id": "101480267571304637814",
-            "email": "samuelferenczi@invenshure.com",
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
             "verified_email": "True",
             "picture": "aaaaaaaaaa.jpeg",
             "hd": "invenshure.com"
@@ -1041,6 +1040,127 @@ def test_account_2(mocker):
             resp = client.get('/account')
             assert resp.status_code == 200
             assert b"Group" in resp.data
-            logging.info(str(resp.data))
+            assert b"administrator" in resp.data
+            assert b"20" in resp.data
     finally:
         delete_everything_from_db()
+
+
+# Sending get request with None leavecategory
+def test_account_3(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=None)
+        db.add(fake_user)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+            }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = client.get('/account')
+            assert resp.status_code == 200
+            assert b"Group" in resp.data
+            assert b"administrator" in resp.data
+            assert b"You don&#39;t have a leave category yet." in resp.data
+    finally:
+        delete_everything_from_db()
+
+
+# Checks response from /requests endpoint With 1 request
+def test_requests_1(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=11),
+                                            start_date=datetime.date(year=2018, month=4, day=10),
+                                            user_id=1, state="pending")
+
+        db.add(fake_user)
+        db.add(leave_request)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+            }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = client.get('/requests')
+            assert resp.status_code == 200
+            assert b"pending" in resp.data
+            assert b"test_elek@invenshure.com" in resp.data
+            assert b"Browse Leave Requests" in resp.data
+            assert b"2018-04-10"
+    finally:
+        delete_everything_from_db()
+
+
+# Checks response from /requests endpoint With 11 request
+def test_requests_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="administrator", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+        x = 0
+        while x < 11:
+            leave_request = routes.LeaveRequest(end_date=datetime.date(year=2018, month=4, day=11),
+                                                start_date=datetime.date(year=2018, month=4, day=10),
+                                                user_id=1, state="pending")
+
+            db.add(leave_request)
+            db.commit()
+            x = x + 1
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+            }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = client.get('/requests')
+            assert resp.status_code == 200
+            assert b"pending" in resp.data
+            assert b"test_elek@invenshure.com" in resp.data
+            assert b"Browse Leave Requests" in resp.data
+            assert b"2018-04-10" in resp.data
+            assert b"Next" in resp.data
+    finally:
+        delete_everything_from_db()
+
+
+
+def test_admin_1():
