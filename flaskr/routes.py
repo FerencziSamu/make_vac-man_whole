@@ -327,6 +327,7 @@ def authorized():
     except Exception as e:
         logging.exception("Exception at login/authorized: " + str(e))
 
+
 @google.tokengetter
 def get_google_oauth_token():
     return session.get('google_token')
@@ -374,8 +375,8 @@ def get_user_by_email(email):
 def get_leave_request(id):
     try:
         return LeaveRequest.query.filter_by(id=id).first()
-    except exc.SQLAlchemyError as e:
-        logging.exception("Exception: " + str(e))
+    except TypeError as e:
+        logging.error("Error: " + str(e))
 
 def get_leave_category(field=None):
     try:

@@ -1,5 +1,7 @@
 from unittest import mock
 from flask_mail import Message
+from sqlalchemy import exc
+
 from flaskr import routes, app, logging
 import pytest, datetime
 
@@ -288,6 +290,7 @@ def remove_tester_leaverequest():
     db.commit()
 
 
+# @pytest.mark.filterwarnings("ignore:")
 def test_get_leave_request():
     try:
         # Adding test LeaveRequest and setting it's output value to the variable.
@@ -1163,6 +1166,29 @@ def test_save_request_6():
         delete_everything_from_db()
 
 
+# Trying to save a request as a viewer
+def test_save_request_7():
+    try:
+        # Adding test user and category
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="viewer", days=0, notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        data = {"current_user": "test_elek@invenshure.com", "start-date": "03/14/2019", "end-date": "03/17/2019"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/save_request', data=data, follow_redirects=True)
+            assert resp.status_code == 200
+            assert b"Account" in resp.data
+        l_requests = routes.LeaveRequest.query.all()
+        assert len(l_requests) == 0
+    finally:
+        delete_everything_from_db()
+
+
 # Sending post request to account endpoint
 def test_account_1(client):
     rv = client.post('/account')
@@ -1447,3 +1473,146 @@ def test_login_auth_1(mocker):
         assert user.user_group == "administrator"
     finally:
         delete_everything_from_db()
+
+
+# Logging in for the first time, checks if we are unapproved and the categories are not created
+def test_login_auth_2(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    fake_user = routes.User(email="test_elni_jo@invenshure.com", user_group="administrator", days=0,
+                            notification=0,
+                            leave_category_id=None)
+    db.add(fake_user)
+    db.commit()
+    try:
+        resp = {'access_token': 'test',
+                'expires_in': 3600,
+                'scope': 'openid https://www.googleapis.com/auth/userinfo.email',
+                'token_type': 'Bearer',
+                'id_token': 'test'
+                }
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo_2@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            mocker.patch('flaskr.routes.google.authorized_response', return_value=resp)
+            resp = client.get('/login/authorized', follow_redirects=True)
+            assert resp.status_code == 200
+            assert b"Account" in resp.data
+            assert b"Your account is not approved yet!" in resp.data
+            assert b"About Vacation Manager" in resp.data
+            assert b"You can\'t create leave requests until an administrator sets your leave category!" not in resp.data
+        cat = routes.LeaveCategory.query.all()
+        num_cat = len(cat)
+        assert num_cat == 0
+        user = routes.User.query.filter_by(id=2).first()
+        assert user.user_group == "unapproved"
+    finally:
+        delete_everything_from_db()
+
+
+# Logging in as a user already, checks if we are redirected properly and the categories are not created
+def test_login_auth_3(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    fake_user = routes.User(email="test_elni_jo@invenshure.com", user_group="employee", days=0,
+                            notification=0,
+                            leave_category_id=None)
+    db.add(fake_user)
+    db.commit()
+    try:
+        resp = {'access_token': 'test',
+                'expires_in': 3600,
+                'scope': 'openid https://www.googleapis.com/auth/userinfo.email',
+                'token_type': 'Bearer',
+                'id_token': 'test'
+                }
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            mocker.patch('flaskr.routes.google.authorized_response', return_value=resp)
+            resp = client.get('/login/authorized', follow_redirects=True)
+            assert resp.status_code == 200
+            assert b"Account" in resp.data
+            assert b"About Vacation Manager" in resp.data
+            assert b"You can\'t create leave requests until an administrator sets your leave category!" in resp.data
+        cat = routes.LeaveCategory.query.all()
+        num_cat = len(cat)
+        assert num_cat == 0
+        user = routes.User.query.filter_by(id=1).first()
+        assert user.user_group == "employee"
+    finally:
+        delete_everything_from_db()
+
+
+# Logging in as a user already, checks if we are redirected properly and the categories are not created
+def test_login_auth_4(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    fake_user = routes.User(email="test_elni_jo@invenshure.com", user_group="employee", days=0,
+                            notification=0,
+                            leave_category_id=None)
+    db.add(fake_user)
+    db.commit()
+    try:
+        resp = None
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            mocker.patch('flaskr.routes.google.authorized_response', return_value=resp)
+            mocker.patch('flaskr.routes.request', return_value=None)
+            resp = client.get('/login/authorized', follow_redirects=False)
+        assert resp.status_code == 200
+        assert b"Access denied:" in resp.data
+    finally:
+        delete_everything_from_db()
+
+
+'''Exception tests'''
+
+
+# def test_login_except(mocker):
+#     class MockedUserInfo:
+#         def __init__(self, userinfo):
+#             self.data = userinfo
+#     try:
+#         # with app.test_client() as client:
+#         #    resp = client.get('/login/authorized')
+#         # assert b"Exception at login/authorized:" in resp.data
+#         with app.test_client() as client:
+#             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo("123"))
+#             mocker.patch('flaskr.routes.google.authorized_response', return_value="asdasdasd")
+#             mocker.patch('flaskr.routes.request', return_value="asdasdasd")
+#             with pytest.raises(TypeError):
+#                 assert client.get('/login/authorized')
+#     finally:
+#         delete_everything_from_db()
