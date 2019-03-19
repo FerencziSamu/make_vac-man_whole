@@ -3,7 +3,6 @@ from flask_mail import Message
 from flaskr import routes, app, logging
 import pytest, datetime
 
-
 # Deleting all data from db before testing
 routes.db.session.query(routes.User).delete()
 routes.db.session.query(routes.LeaveRequest).delete()
@@ -100,6 +99,8 @@ def test_login_3(client):
 # Logout redirected us to the main page
 '''<class 'werkzeug.local.LocalProxy'> instead of session_transaction() object,
 read more:http://flask.pocoo.org/docs/1.0/testing/'''
+
+
 def test_logout_1():
     with app.test_client() as c:
         with c.session_transaction() as sess:
@@ -1405,5 +1406,44 @@ def test_admin_2(mocker):
             assert b"Leave Category" not in resp.data
             assert b"User Group" not in resp.data
             assert b"New category" not in resp.data
+    finally:
+        delete_everything_from_db()
+
+
+# Logging in for the first time, checks if we are admin and default 2 categories are created
+def test_login_auth_1(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        resp = {'access_token': 'test',
+                'expires_in': 3600,
+                'scope': 'openid https://www.googleapis.com/auth/userinfo.email',
+                'token_type': 'Bearer',
+                'id_token': 'test'
+                }
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elni_jo@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+
+        with app.test_client() as client:
+            mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            mocker.patch('flaskr.routes.google.authorized_response', return_value=resp)
+            resp = client.get('/login/authorized', follow_redirects=True)
+            assert resp.status_code == 200
+            assert b"Admin" in resp.data
+            assert b"About Vacation Manager" in resp.data
+            assert b"You can\'t create leave requests until an administrator sets your leave category!" in resp.data
+        cat = routes.LeaveCategory.query.all()
+        num_cat = len(cat)
+        assert num_cat == 2
+        user = routes.User.query.filter_by(id=1).first()
+        assert user.user_group == "administrator"
     finally:
         delete_everything_from_db()
