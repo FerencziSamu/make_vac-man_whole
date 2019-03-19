@@ -726,7 +726,7 @@ def test_handle_acc_5():
         delete_everything_from_db()
 
 
-# Checks if user_group can be modified from administrator to unapproved
+# Checks if user_group can be modified from administrator to unapproved with 1 administrator(s) in the system
 def test_handle_acc_6():
     try:
         user = routes.User(email="test_elek@invenshure.com")
@@ -748,7 +748,7 @@ def test_handle_acc_6():
             resp = client.post('/handle_acc', data=data_2)
             assert resp.status_code == 302
         user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
-        assert user.user_group == "unapproved"
+        assert user.user_group == "administrator"
     finally:
         delete_everything_from_db()
 
@@ -892,6 +892,35 @@ def test_handle_acc_11():
         db.delete(q)
         db.commit()
         assert user.leave_category_id is None
+    finally:
+        delete_everything_from_db()
+
+
+# Checks if user_group can be modified from administrator to unapproved with 2 administrator(s) in the system
+def test_handle_acc_12():
+    try:
+        user = routes.User(email="test_elek@invenshure.com")
+        user_2 = routes.User(email="test_elek_2@invenshure.com", user_group="administrator")
+        db.add(user)
+        db.add(user_2)
+        db.commit()
+        data = {"user": "test_elek@invenshure.com", "group": "administrator"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "administrator"
+        db.commit()
+        data_2 = {"user": "test_elek@invenshure.com", "group": "unapproved"}
+        with app.test_client() as client:
+            with client.session_transaction() as sess:
+                sess['user'] = 'test_elek@invenshure.com'
+            resp = client.post('/handle_acc', data=data_2)
+            assert resp.status_code == 302
+        user = routes.User.query.filter_by(email="test_elek@invenshure.com").first()
+        assert user.user_group == "unapproved"
     finally:
         delete_everything_from_db()
 
@@ -1378,5 +1407,3 @@ def test_admin_2(mocker):
             assert b"New category" not in resp.data
     finally:
         delete_everything_from_db()
-
-

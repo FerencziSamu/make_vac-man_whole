@@ -200,13 +200,18 @@ def handle_acc():
             send_email(change, user.email)
             cat = LeaveCategory.query.filter_by(id=category).first()
             logging.info(user.email + " 's category has been changed to " + cat.category + " by " + session['user'])
-        else:
+        elif group is not None:
             user = get_user_by_email(email=user_email)
-            user.user_group = group
-            db.session.commit()
-            change = user.email + "'s user group has been changed."
-            send_email(change, user.email)
-            logging.info(user.email + " 's user group has been changed to " + user.user_group + " by " + session['user'])
+            admins = User.query.filter_by(user_group='administrator').all()
+            number_of_admins = len(admins)
+            if user.user_group == "administrator" and number_of_admins < 2:
+                flash("Sorry, at least 1 administrator needs to be in the system!")
+            else:
+                user.user_group = group
+                db.session.commit()
+                change = user.email + "'s user group has been changed."
+                send_email(change, user.email)
+                logging.info(user.email + " 's user group has been changed to " + user.user_group + " by " + session['user'])
     return redirect(url_for('admin'))
 
 @app.route('/handle_cat', methods=["POST", "GET"])
