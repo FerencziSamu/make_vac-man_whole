@@ -1,6 +1,6 @@
 import os, logging
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
@@ -20,6 +20,15 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = app.config.get('USER_EMAIL')
 app.config['MAIL_PASSWORD'] = app.config.get('USER_PW')
 mail = Mail(app)
+
+
+@app.errorhandler(Exception)
+def handle_invalid_usage(error):
+    response = jsonify({'message': 'Internal server error', 'description': str(error)})
+    response.status_code = 500
+    logging.exception(response)
+    return response
+
 
 from flaskr import routes
 

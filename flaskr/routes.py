@@ -1,5 +1,5 @@
 from smtplib import SMTPException
-from flask import redirect, url_for, session, request, render_template, flash
+from flask import redirect, url_for, session, request, render_template, flash, jsonify
 from flaskr import app, db, mail, logging
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
@@ -91,40 +91,33 @@ def account():
 
 @app.route('/save_request', methods=["GET", "POST"])
 def save_request():
-    try:
-        email = request.form.get('current_user')
-        current_user = get_user_by_email(email=email)
-        if current_user.user_group == 'viewer' or current_user.user_group == 'unapproved':
-            return redirect(url_for('index'))
-        start_date_split = request.form.get('start-date').split("/")
-        end_date_split = request.form.get('end-date').split("/")
-        start_date = create_start_date(start_date_split)
-        end_date = create_end_date(end_date_split)
-        days = (end_date - start_date).days
-        if days + 1 <= get_days_left(current_user) and days > 0:
-            leave_request = LeaveRequest(start_date=start_date,
-                                         end_date=end_date,
-                                         state='pending',
-                                         user_id=current_user.id)
-            if current_user.user_group == 'administrator':
-                leave_request.state = 'accepted'
-            current_user.days += days + 1
-            add_to_db(leave_request)
-            change = current_user.email + " created a leave request."
-            send_email(change)
-            try:
-                logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
-            except KeyError as e:
-                logging.error("Error " + str(e))
-            return redirect(url_for('index'))
-        flash("You only have " + str(get_days_left(current_user)) + " days left!")
+    email = request.form.get('current_user')
+    current_user = get_user_by_email(email=email)
+    if current_user.user_group == 'viewer' or current_user.user_group == 'unapproved':
         return redirect(url_for('index'))
-    except AttributeError as e:
-        logging.error("Error " + str(e))
+    start_date_split = request.form.get('start-date').split("/")
+    end_date_split = request.form.get('end-date').split("/")
+    start_date = create_start_date(start_date_split)
+    end_date = create_end_date(end_date_split)
+    days = (end_date - start_date).days
+    if days + 1 <= get_days_left(current_user) and days > 0:
+        leave_request = LeaveRequest(start_date=start_date,
+                                     end_date=end_date,
+                                     state='pending',
+                                     user_id=current_user.id)
+        if current_user.user_group == 'administrator':
+            leave_request.state = 'accepted'
+        current_user.days += days + 1
+        add_to_db(leave_request)
+        change = current_user.email + " created a leave request."
+        send_email(change)
+        try:
+            logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
+        except KeyError as e:
+            logging.error("Error " + str(e))
         return redirect(url_for('index'))
-    except ValueError as e:
-        logging.error("Error " + str(e))
-        return redirect(url_for('index'))
+    flash("You only have " + str(get_days_left(current_user)) + " days left!")
+    return redirect(url_for('index'))
 
 @app.route('/handle_request', methods=["POST", "GET"])
 def handle_request():
@@ -239,33 +232,29 @@ def handle_cat():
 
 @app.route('/report', methods=['GET', 'POST'])
 def report():
-    try:
-        if 'user' in session:
-            current_user = get_current_user()
-            if current_user.user_group == 'administrator' or current_user.user_group == 'employee':
-                if request.method == 'GET':
-                    return render_template('report.html')
-                else:
-                    report_value = request.form['report']
-                    ts = time.time()
-                    report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                    user = session.get('user')
-                    f = open("flaskr/reports/" + report_time, "a+")
-                    f.write(user + " " + report_time + " " + report_value + "\n")
-                    f.close()
-                    email = [app.config.get('USER_EMAIL')]
-                    msg = Message('Vacation Management Error Report',
-                                  sender='noreply@demo.com',
-                                  recipients=email)
-                    msg.body = f'''New report: {user} {report_time} {report_value}'''
-                    send_async_email(app, msg)
-                    return render_template('report.html', success=True)
-            return redirect(url_for('index'))
-        return redirect(url_for('login'))
-    except OAuthException as e:
-        logging.exception("Exception " + str(e))
-    except Exception as e:
-        logging.exception("Exception " + str(e))
+    if 'user' in session:
+        current_user = get_current_user()
+        if current_user.user_group == 'administrator' or current_user.user_group == 'employee':
+            if request.method == 'GET':
+                return render_template('report.html')
+            else:
+                report_value = request.form['report']
+                ts = time.time()
+                report_time = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                user = session.get('user')
+                f = open("flaskr/reports/" + report_time, "a+")
+                f.write(user + " " + report_time + " " + report_value + "\n")
+                f.close()
+                email = [app.config.get('USER_EMAIL')]
+                msg = Message('Vacation Management Error Report',
+                              sender='noreply@demo.com',
+                              recipients=email)
+                msg.body = f'''New report: {user} {report_time} {report_value}'''
+                send_async_email(app, msg)
+                return render_template('report.html', success=True)
+        return redirect(url_for('index'))
+    return redirect(url_for('login'))
+
 
 @app.route('/login')
 def login():
@@ -278,55 +267,49 @@ def logout():
     return redirect(url_for('index'))
 
 def create_default_cat():
-    try:
-        categories = LeaveCategory.query.all()
-        if not categories:
-            young = LeaveCategory(category='Young', max_days='20')
-            old = LeaveCategory(category='Old', max_days='30')
-            add_to_db(young)
-            add_to_db(old)
-            logging.info("Default categories have been created.")
-    except Exception as e:
-        logging.exception("Exception at create_default_cat: " + str(e))
+    categories = LeaveCategory.query.all()
+    if not categories:
+        young = LeaveCategory(category='Young', max_days='20')
+        old = LeaveCategory(category='Old', max_days='30')
+        add_to_db(young)
+        add_to_db(old)
+        logging.info("Default categories have been created.")
+
 
 @app.route('/login/authorized')
 def authorized():
-    try:
-        resp = google.authorized_response()
-        if resp is None:
-            return 'Access denied: reason=%s error=%s' % (
-                request.args['error_reason'],
-                request.args['error_description']
-            )
-        session['google_token'] = (resp['access_token'], '')
-        raw_data = json.dumps(google.get('userinfo').data)
-        data = json.loads(raw_data)
-        email = data['email']
-        existing = get_user_by_email(email=email)
-        session['user'] = email
-        logging.info(session['user'] + " has logged in.")
-        if existing is None:
-            first_user = User.query.all()
-            if not first_user:
-                user = User(email=email)
-                user.user_group = "administrator"
-                add_to_db(user)
-                create_default_cat()
-                change = user.email + " logged in for the first time.You are administrator now!"
-                send_email(change)
-                session['user'] = user.email
-                logging.info(session['user'] + " has logged in.")
-                return redirect(url_for('index'))
+    resp = google.authorized_response()
+    if resp is None:
+        return 'Access denied: reason=%s error=%s' % (
+            request.args['error_reason'],
+            request.args['error_description']
+        )
+    session['google_token'] = (resp['access_token'], '')
+    raw_data = json.dumps(google.get('userinfo').data)
+    data = json.loads(raw_data)
+    email = data['email']
+    existing = get_user_by_email(email=email)
+    session['user'] = email
+    logging.info(session['user'] + " has logged in.")
+    if existing is None:
+        first_user = User.query.all()
+        if not first_user:
             user = User(email=email)
+            user.user_group = "administrator"
             add_to_db(user)
-            change = user.email + " logged in for the first time."
+            create_default_cat()
+            change = user.email + " logged in for the first time.You are administrator now!"
             send_email(change)
             session['user'] = user.email
             logging.info(session['user'] + " has logged in.")
-        return redirect(url_for('index'))
-    except Exception as e:
-        logging.exception("Exception at login/authorized: " + str(e))
-
+            return redirect(url_for('index'))
+        user = User(email=email)
+        add_to_db(user)
+        change = user.email + " logged in for the first time."
+        send_email(change)
+        session['user'] = user.email
+        logging.info(session['user'] + " has logged in.")
+    return redirect(url_for('index'))
 
 @google.tokengetter
 def get_google_oauth_token():
@@ -337,18 +320,12 @@ def dateformat(date):
     return date.strftime('%Y-%m-%d')
 
 def add_to_db(item):
-    try:
-        db.session.add(item)
-        db.session.commit()
-    except exc.SQLAlchemyError as e:
-        logging.exception("Exception: " + str(e))
+    db.session.add(item)
+    db.session.commit()
 
 def delete_from_db(item):
-    try:
-        db.session.delete(item)
-        db.session.commit()
-    except exc.SQLAlchemyError as e:
-        logging.exception("Exception: " + str(e))
+    db.session.delete(item)
+    db.session.commit()
 
 def get_current_user():
     try:
@@ -367,16 +344,11 @@ def get_days_left(user):
     return user.leave_category.max_days - user.days
 
 def get_user_by_email(email):
-    try:
-        return User.query.filter_by(email=email).first()
-    except exc.SQLAlchemyError as e:
-        logging.exception("Exception: " + str(e))
+    return User.query.filter_by(email=email).first()
+
 
 def get_leave_request(id):
-    try:
-        return LeaveRequest.query.filter_by(id=id).first()
-    except TypeError as e:
-        logging.error("Error: " + str(e))
+    return LeaveRequest.query.filter_by(id=id).first()
 
 def get_leave_category(field=None):
     try:
@@ -392,18 +364,18 @@ def create_end_date(end_date_split):
     return datetime.datetime.strptime(end_date_split[2] + '-' + end_date_split[0] + '-' + end_date_split[1], '%Y-%m-%d')
 
 @asynchronous
-def send_async_email(msg):
+def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
         except SMTPException as e:
             logging.exception("Exception: " + str(e))
-            pass
         except AssertionError as e:
+            logging.error("Error: " + str(e))
+        except TypeError as e:
             logging.error("Error: " + str(e))
 
 def send_email(change, email=None):
-    try:
         admins = User.query.filter_by(user_group='administrator', notification=True).all()
         emails = []
         for admin in admins:
@@ -418,6 +390,4 @@ def send_email(change, email=None):
         msg.body = f'''There has been a change:
             {change}
         If you would like to turn off the notifications visit your account settings!'''
-        send_async_email(msg)
-    except SyntaxError as e:
-        logging.error("Error " + str(e))
+        send_async_email(app, msg)

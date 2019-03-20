@@ -169,7 +169,7 @@ def test_send_async_email_1():
                   sender='noreply@demo.com',
                   recipients=None)
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # With 2 recipients in db. The settings does not matter, check logic! If user in db has been added to recipients, email
@@ -179,7 +179,7 @@ def test_send_async_email_2():
                   sender='noreply@demo.com',
                   recipients=['samuelferenczi@invenshure.com', 'huli.opaltest@gmail.com'])
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # With invalid recipient, warns test_send_async_email_3 never awaited, hence turned off
@@ -190,7 +190,7 @@ async def test_send_async_email_3():
                   sender='noreply@demo.com',
                   recipients=12345)
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # With invalid sender, warns test_send_async_email_4 never awaited, hence turned off
@@ -201,7 +201,7 @@ async def test_send_async_email_4():
                   sender=12345,
                   recipients="samuelferenczi@invenshure.com")
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # With empty sender&recipients, warns test_send_async_email_5 never awaited, hence turned off
@@ -212,7 +212,7 @@ async def test_send_async_email_5():
                   sender="",
                   recipients="")
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # Without first parameter, warns test_send_async_email_6 never awaited, hence turned off
@@ -221,7 +221,7 @@ async def test_send_async_email_5():
 async def test_send_async_email_6():
     msg = Message(sender='noreply@demo.com', recipients="samuelferenczi@invenshure.com")
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # Without integer body, warns test_send_async_email_7 never awaited, hence turned off
@@ -232,7 +232,7 @@ async def test_send_async_email_7():
                   sender='noreply@demo.com',
                   recipients="samuelferenczi@invenshure.com")
     msg.body = 12345
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 # With 2 recipients, but only 1 in db. Only that one receives the email, warns test_send_async_email_8
@@ -244,7 +244,7 @@ async def test_send_async_email_8():
                   sender='noreply@demo.com',
                   recipients=['samuelferenczi@invenshure.com', 'samu.ferenczi@gmail.com'])
     msg.body = "test_email"
-    routes.send_async_email(msg)
+    routes.send_async_email(app, msg)
 
 
 def test_get_leavecategory():
@@ -479,7 +479,7 @@ def test_get_current_user(get_fake_user, client):
     get_fake_user.return_value = fake_user_3
     assert (get_fake_user().user_group == 'unapproved')
     resp = client.get('/save_request')
-    assert resp.status_code == 302
+    assert resp.status_code == 500
     # Employee test
     get_fake_user.return_value = fake_user_4
     assert (get_fake_user().user_group == 'employee')
@@ -1155,11 +1155,11 @@ def test_save_request_6():
             with client.session_transaction() as sess:
                 sess['user'] = 'test_elek@invenshure.com'
             resp = client.post('/save_request', data=data)
-            assert resp.status_code == 302
+            assert resp.status_code == 500
             resp = client.post('/save_request', data=data_2)
-            assert resp.status_code == 302
+            assert resp.status_code == 500
             resp = client.post('/save_request', data=data_3)
-            assert resp.status_code == 302
+            assert resp.status_code == 500
         l_requests = routes.LeaveRequest.query.all()
         assert len(l_requests) == 0
     finally:
@@ -1600,19 +1600,11 @@ def test_login_auth_4(mocker):
 '''Exception tests'''
 
 
-# def test_login_except(mocker):
-#     class MockedUserInfo:
-#         def __init__(self, userinfo):
-#             self.data = userinfo
-#     try:
-#         # with app.test_client() as client:
-#         #    resp = client.get('/login/authorized')
-#         # assert b"Exception at login/authorized:" in resp.data
-#         with app.test_client() as client:
-#             mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo("123"))
-#             mocker.patch('flaskr.routes.google.authorized_response', return_value="asdasdasd")
-#             mocker.patch('flaskr.routes.request', return_value="asdasdasd")
-#             with pytest.raises(TypeError):
-#                 assert client.get('/login/authorized')
-#     finally:
-#         delete_everything_from_db()
+def test_login_except(mocker):
+    with app.test_client() as client:
+        mocker.patch('flaskr.routes.google.authorized_response', side_effect=Exception('my error'))
+        with pytest.raises(Exception):
+            routes.authorized()
+        resp = client.get('/login/authorized')
+        assert resp.json['description'] == 'my error'
+        assert resp.status_code == 500
