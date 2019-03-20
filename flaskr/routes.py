@@ -1,5 +1,5 @@
 from smtplib import SMTPException
-from flask import redirect, url_for, session, request, render_template, flash, jsonify
+from flask import redirect, url_for, session, request, render_template, flash
 from flaskr import app, db, mail, logging
 from flaskr.models import User, LeaveRequest, LeaveCategory
 from .decorators import asynchronous
@@ -50,11 +50,9 @@ def admin():
                                    prev_url=prev_url, leave_categories=leave_categories,
                                    user_groups=app.config.get('USER_GROUPS'), current_user=current_user)
         return redirect(url_for('index'))
-    except OAuthException as e:
-        logging.exception("Exception: " + str(e))
+    except OAuthException:
         return redirect(url_for('logout'))
-    except AttributeError as e:
-        logging.error("Error " + str(e))
+    except AttributeError:
         return redirect(url_for('index'))
 
 @app.route('/requests')
@@ -73,8 +71,7 @@ def requests():
                                    prev_url=prev_url, current_user=current_user)
         return redirect(url_for('index'))
     except AttributeError as e:
-        logging.error("Error " + str(e))
-    return redirect(url_for('index'))
+        return redirect(url_for('index'))
 
 @app.route('/account')
 def account():
@@ -86,7 +83,6 @@ def account():
             days_left = get_days_left(current_user)
         return render_template('account.html', current_user=current_user, days_left=days_left)
     except AttributeError as e:
-        logging.error("Error: " + str(e))
         return redirect(url_for('logout'))
 
 @app.route('/save_request', methods=["GET", "POST"])
@@ -100,7 +96,7 @@ def save_request():
     start_date = create_start_date(start_date_split)
     end_date = create_end_date(end_date_split)
     days = (end_date - start_date).days
-    if days + 1 <= get_days_left(current_user) and days > 0:
+    if get_days_left(current_user) >= days + 1 > 0:
         leave_request = LeaveRequest(start_date=start_date,
                                      end_date=end_date,
                                      state='pending',
@@ -111,10 +107,7 @@ def save_request():
         add_to_db(leave_request)
         change = current_user.email + " created a leave request."
         send_email(change)
-        try:
-            logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
-        except KeyError as e:
-            logging.error("Error " + str(e))
+        logging.info(session['user'] + " created a leave request with id:" + str(leave_request.id))
         return redirect(url_for('index'))
     flash("You only have " + str(get_days_left(current_user)) + " days left!")
     return redirect(url_for('index'))

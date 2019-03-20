@@ -1,8 +1,7 @@
 from unittest import mock
 from flask_mail import Message
-from sqlalchemy import exc
 
-from flaskr import routes, app, logging
+from flaskr import routes, app
 import pytest, datetime
 
 # Deleting all data from db before testing
@@ -591,6 +590,38 @@ def test_report_4(mocker):
             data = {"report": "Hi! This is the report test body!"}
             resp = c.post('/report', data=data)
         assert resp.status_code == 200
+    finally:
+        delete_everything_from_db()
+
+
+# Checks if we are trying to visit /report endpoint with being logged in as viewer
+def test_report_5(mocker):
+    class MockedUserInfo:
+        def __init__(self, userinfo):
+            self.data = userinfo
+
+    try:
+        routes.create_default_cat()
+        fake_user = routes.User(email="test_elek@invenshure.com", user_group="viewer", days=0,
+                                notification=0,
+                                leave_category_id=1)
+        db.add(fake_user)
+        db.commit()
+
+        json_data = {
+            "id": "101843067871304637814",
+            "email": "test_elek@invenshure.com",
+            "verified_email": "True",
+            "picture": "aaaaaaaaaa.jpeg",
+            "hd": "invenshure.com"
+        }
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess["user"] = "test_elek@invenshure.com"
+                mocker.patch('flaskr.routes.google.get', return_value=MockedUserInfo(json_data))
+            resp = c.get('/report', follow_redirects=False)
+            assert resp.status_code == 302
+            assert b"redirect" in resp.data
     finally:
         delete_everything_from_db()
 
@@ -1595,9 +1626,6 @@ def test_login_auth_4(mocker):
         assert b"Access denied:" in resp.data
     finally:
         delete_everything_from_db()
-
-
-'''Exception tests'''
 
 
 def test_login_except(mocker):
