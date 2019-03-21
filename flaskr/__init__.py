@@ -1,7 +1,8 @@
-import os, logging
+import os
+import logging
 import pymysql
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
@@ -23,6 +24,15 @@ app.config['MAIL_USERNAME'] = app.config.get('USER_EMAIL')
 app.config['MAIL_PASSWORD'] = app.config.get('USER_PW')
 mail = Mail(app)
 
+
+@app.errorhandler(Exception)
+def handle_invalid_usage(error):
+    response = jsonify({'message': 'Internal server error', 'description': str(error)})
+    response.status_code = 500
+    logging.exception(response)
+    return response
+
+
 from flaskr import routes
 
 # ensure the instance and reports folder exists
@@ -32,6 +42,6 @@ except FileExistsError as e:
     logging.error("\n\n\n" + "Error: " + str(e))
 
 try:
-    os.mkdir("flaskr/reports", 0o777)
+    os.mkdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "reports"), 0o777)
 except FileExistsError as e:
     logging.error("Error: " + str(e))

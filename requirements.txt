@@ -1,3 +1,4 @@
+pytest
 flask
 flask_oauthlib
 flask-sqlalchemy
@@ -5,3 +6,4 @@ Flask-Mail
 mysqlclient
 pymysql
 sqlalchemy
+coverage

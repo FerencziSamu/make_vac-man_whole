@@ -3,6 +3,13 @@
   <a href="/requests">Leave Requests</a>
 {% endblock admin %}
 {% block content %}
+    {% with messages = get_flashed_messages() %}
+             {% if messages %}
+                   {% for message in messages %}
+                   <p class="alert alert-danger"> {{ message }} </p>
+                   {% endfor %}
+             {% endif %}
+    {% endwith %}
     <h1>Pending Accounts</h1>
     <table class="table table-condensed admin">
     <thead>
@@ -126,8 +133,8 @@
     {% endfor %}
       <form action = "/handle_cat" method = "POST">
         <tr>
-          <td><input class="form-control" placeholder="New category" type="text" name="add"></td>
-          <td><input class="form-control" placeholder="Days" type="number" min="1" step="1" name="max_days"></td>
+          <td><input pattern=".{3,}" required class="form-control" placeholder="New category" type="text" name="add"></td>
+          <td><input pattern=".{1,2}" required class="form-control" placeholder="Days" type="number" min="1" step="1" name="max_days"></td>
           <td><input class="btn btn-default" type="submit" value="Add"></td>
         </tr>
       </form>
