@@ -11,7 +11,6 @@ routes.db.session.query(routes.LeaveCategory).delete()
 routes.db.session.commit()
 
 # Global variable for db calling
-
 db = routes.db.session
 
 
@@ -1628,6 +1627,7 @@ def test_login_auth_4(mocker):
         delete_everything_from_db()
 
 
+# Tests if the exception is caught
 def test_login_except(mocker):
     with app.test_client() as client:
         mocker.patch('flaskr.routes.google.authorized_response', side_effect=Exception('my error'))
