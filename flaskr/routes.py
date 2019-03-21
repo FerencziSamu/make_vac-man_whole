@@ -27,8 +27,8 @@ google = oauth.remote_app('google',
 
 @app.route('/')
 def index():
-    if 'user' in session:
-        current_user = get_current_user()
+    current_user = get_current_user()
+    if 'user' or current_user in session:
         return render_template('index.html', current_user=current_user)
     return render_template('index.html', current_user=None)
 
