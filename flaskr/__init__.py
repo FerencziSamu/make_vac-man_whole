@@ -1,19 +1,17 @@
 import os
 import logging
-import pymysql
 
 from flask import Flask, jsonify
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
 # create and configure the app
-pymysql.install_as_MySQLdb()
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_pyfile('config.py')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config.from_mapping(
     SECRET_KEY='dev',
-    SQLALCHEMY_DATABASE_URI='mysql+pymysql://root@db:3306/site'
+    SQLALCHEMY_DATABASE_URI='sqlite:///site.db'
 )
 logging.basicConfig(filename='flaskr_log.log', format='%(asctime)s - %(message)s', level=logging.NOTSET)
 db = SQLAlchemy(app)

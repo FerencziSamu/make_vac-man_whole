@@ -10,7 +10,7 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install
 
 ```
-Docker, Docker-Compose, Python 3.6+
+Docker, Docker-Compose
 ```
 
 ### Installing
